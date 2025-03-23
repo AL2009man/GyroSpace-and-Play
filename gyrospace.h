@@ -301,4 +301,3 @@ static Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float r
 #endif
 
 #endif // GYROSPACE_H
-#endif // GYROSPACE_H
