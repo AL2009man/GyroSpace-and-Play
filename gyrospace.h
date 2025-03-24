@@ -7,6 +7,8 @@
  * Player Space, and World Space, while handling sensitivity adjustments
  * and gravity alignment. Compatible with both C and C++ environments.
  *
+ * Also compatible with GamepadMotionHelpers!
+ *
  * Based on the work by Jibb Smart (JoyShockMapper, GamepadMotionHelpers,
  * Fortnite v.19.30's Gyro Aim/Flick Stick implementation)
  *
@@ -180,6 +182,52 @@ static inline Vector3 GetGravityVector(void) {
     return gravNorm;
 }
 
+
+#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
+#include "GamepadMotion.hpp" // Include GamepadMotionHelpers library
+
+#ifdef __cplusplus
+
+/**
+ * Uses GamepadMotionHelpers to calculate Player Space Gyro values.
+ *
+ * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
+ * @param yawRelaxFactor Relaxation factor for yaw adjustment.
+ * @return Transformed vector in Player Space.
+ */
+Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float yawRelaxFactor) {
+    float x, y;
+    GamepadMotionHelpers::CalculatePlayerSpaceGyro(
+        x, y,
+        motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
+        motionData.Motion.Grav.x, motionData.Motion.Grav.y, motionData.Motion.Grav.z,
+        yawRelaxFactor
+    );
+    return Vec3_New(x, y, 0.0f);
+}
+
+/**
+ * Uses GamepadMotionHelpers to calculate World Space Gyro values.
+ *
+ * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
+ * @param sideReductionThreshold Threshold for reducing side impacts.
+ * @return Transformed vector in World Space.
+ */
+Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float sideReductionThreshold) {
+    float x, y;
+    GamepadMotionHelpers::CalculateWorldSpaceGyro(
+        x, y,
+        motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
+        motionData.Motion.Grav.x, motionData.Motion.Grav.y, motionData.Motion.Grav.z,
+        sideReductionThreshold
+    );
+    return Vec3_New(x, y, 0.0f);
+}
+
+#endif // __cplusplus
+#endif // ENABLE_GAMEPAD_MOTION_HELPERS
+
+
 // ---- Gyro Space Transformations ----
 
 #ifdef __cplusplus
@@ -215,8 +263,7 @@ using GyroSpace::TransformToWorldSpace;
  * Transforms gyro inputs to Local Space using a transformation matrix.
  */
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
-    float yawSensitivity, float pitchSensitivity,
-    float rollSensitivity, float couplingFactor) {
+    float yawSensitivity, float pitchSensitivity, float rollSensitivity, float couplingFactor) {
     // ---- Adjust Roll and Combine Inputs ----
     float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
     Vector3 rawGyro = Vec3_New(
@@ -241,11 +288,14 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 /**
  * Transforms gyro inputs to Player Space, considering gravity alignment.
  */
-Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
-    Vector3 gravNorm,
+Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm,
     float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
-    // ---- Use Global Gravity Vector ----
-    gravNorm = GetGravityVector();
+    // ---- Normalize Gravity Vector ----
+    if (Vec3_IsZero(gravNorm)) {
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);  // Default gravity vector
+        DEBUG_LOG("Warning: gravNorm was zero, defaulting to (0, 1, 0)\n");
+    }
+    gravNorm = Vec3_Normalize(gravNorm);
 
     // ---- Adjust Inputs ----
     float adjustedYaw = (yaw_input * yawSensitivity) * gravNorm.y + pitch_input * gravNorm.z;
@@ -263,15 +313,17 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
     return playerGyro;
 }
 
-
 /**
  * Transforms gyro inputs to World Space, considering gravity orientation.
  */
-Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
-    Vector3 gravNorm,
+Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm,
     float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
-    // ---- Use Global Gravity Vector ----
-    gravNorm = GetGravityVector();
+    // ---- Normalize Gravity Vector ----
+    if (Vec3_IsZero(gravNorm)) {
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);  // Default gravity vector
+        DEBUG_LOG("Warning: gravNorm was zero, defaulting to (0, 1, 0)\n");
+    }
+    gravNorm = Vec3_Normalize(gravNorm);
 
     // ---- Map Inputs ----
     Vector3 rawGyro = Vec3_New(
