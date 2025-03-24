@@ -184,12 +184,17 @@ static inline Vector3 GetGravityVector(void) {
 
 
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
-#include "GamepadMotion.hpp" // Include GamepadMotionHelpers library
+
+#ifdef __cplusplus
+#include "GamepadMotion.hpp" // Include GamepadMotionHelpers library (C++ version)
+#else
+#include "GamepadMotion.h" // Include GamepadMotionHelpers library (C wrapper for pure C)
+#endif
 
 #ifdef __cplusplus
 
 /**
- * Uses GamepadMotionHelpers to calculate Player Space Gyro values.
+ * Uses GamepadMotionHelpers to calculate Player Space Gyro values (C++ version).
  *
  * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
  * @param yawRelaxFactor Relaxation factor for yaw adjustment.
@@ -207,7 +212,7 @@ Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionD
 }
 
 /**
- * Uses GamepadMotionHelpers to calculate World Space Gyro values.
+ * Uses GamepadMotionHelpers to calculate World Space Gyro values (C++ version).
  *
  * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
  * @param sideReductionThreshold Threshold for reducing side impacts.
@@ -221,6 +226,40 @@ Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionDa
         motionData.Motion.Grav.x, motionData.Motion.Grav.y, motionData.Motion.Grav.z,
         sideReductionThreshold
     );
+    return Vec3_New(x, y, 0.0f);
+}
+
+#else // Pure C version using the Valkirie fork's C wrapper
+
+/**
+ * Uses GamepadMotionHelpers to calculate Player Space Gyro values (C wrapper version).
+ *
+ * @param motion The GamepadMotion object.
+ * @param yawRelaxFactor Relaxation factor for yaw adjustment.
+ * @return Transformed vector in Player Space.
+ */
+static inline Vector3 IntegratePlayerSpaceGyro(GamepadMotion* motion, float yawRelaxFactor) {
+    float x, y;
+    ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
+        motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+    GetCalibratedGyro(motion, &x, &y, NULL);
+
+    return Vec3_New(x, y, 0.0f);
+}
+
+/**
+ * Uses GamepadMotionHelpers to calculate World Space Gyro values (C wrapper version).
+ *
+ * @param motion The GamepadMotion object.
+ * @param sideReductionThreshold Threshold for reducing side impacts.
+ * @return Transformed vector in World Space.
+ */
+static inline Vector3 IntegrateWorldSpaceGyro(GamepadMotion* motion, float sideReductionThreshold) {
+    float x, y;
+    ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
+        motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+    GetGravity(motion, &x, &y, NULL);
+
     return Vec3_New(x, y, 0.0f);
 }
 
