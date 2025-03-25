@@ -1,7 +1,7 @@
 /*
  * =======================================================================
  *
- * Gyro Space and Play!
+ * Gyro Space to Play - A plug-and-play Gyro Space Transformer code
  *
  * Provides functionality for transforming gyro inputs into Local Space,
  * Player Space, and World Space, while handling sensitivity adjustments
