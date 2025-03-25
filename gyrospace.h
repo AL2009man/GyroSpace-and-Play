@@ -1,7 +1,7 @@
 /*
  * =======================================================================
  *
- * Gyro Space header (C++ version with C compatibility).
+ * Gyro Space and Play!
  *
  * Provides functionality for transforming gyro inputs into Local Space,
  * Player Space, and World Space, while handling sensitivity adjustments
@@ -183,25 +183,47 @@ static inline Vector3 GetGravityVector(void) {
 }
 
 
+/**
+ * GamepadMotionHelper compatibility
+ *
+ * This header provides optional integration with
+ * Player Gyro Space's Player Space and World Space
+ * transformer.
+ *
+ * https://github.com/JibbSmart/GamepadMotionHelpers
+ *
+ */
+
+ /**
+  * IMPORTANT: if using GamepadMotion.cpp (Valkirie fork): You must create a corresponding
+  * GamepadMotion.h file. This header serves as a wrapper to provide C compatibility
+  * and access to GamepadMotion.cpp functionality for both C and C++ environments.
+  *
+  * https://github.com/Valkirie/GamepadMotionHelpers
+  *
+  */
+
+
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
 
 #ifdef __cplusplus
-#include "GamepadMotion.hpp" // Include GamepadMotionHelpers library (C++ version)
+#include "GamepadMotion.hpp"
+#pragma message("GamepadMotionHelpers (C++) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
 #else
-#include "GamepadMotion.h" // Include GamepadMotionHelpers library (C wrapper for pure C)
+#include "GamepadMotion.h"   // C wrapper 
+#pragma message("GamepadMotionHelpers (C) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
 #endif
 
 #ifdef __cplusplus
 
-/**
- * Uses GamepadMotionHelpers to calculate Player Space Gyro values (C++ version).
- *
- * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
- * @param yawRelaxFactor Relaxation factor for yaw adjustment.
- * @return Transformed vector in Player Space.
- */
-Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float yawRelaxFactor) {
-    float x, y;
+  /**
+   * @brief Uses GamepadMotionHelper for Player Space transformation.
+   * @param motionData The motion data from GamepadMotionHelpers.
+   * @param yawRelaxFactor Relaxation factor for yaw adjustment.
+   * @return Vector3 transformed in Player Space.
+   */
+inline Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float yawRelaxFactor = 1.41f) {
+    float x = 0.0f, y = 0.0f;
     GamepadMotionHelpers::CalculatePlayerSpaceGyro(
         x, y,
         motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
@@ -212,14 +234,13 @@ Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionD
 }
 
 /**
- * Uses GamepadMotionHelpers to calculate World Space Gyro values (C++ version).
- *
- * @param motionData The motion data from GamepadMotionHelpers (Motion data type).
+ * @brief Uses GamepadMotionHelper for World Space transformation.
+ * @param motionData The motion data from GamepadMotionHelpers.
  * @param sideReductionThreshold Threshold for reducing side impacts.
- * @return Transformed vector in World Space.
+ * @return Vector3 transformed in World Space.
  */
-Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float sideReductionThreshold) {
-    float x, y;
+inline Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float sideReductionThreshold = 0.125f) {
+    float x = 0.0f, y = 0.0f;
     GamepadMotionHelpers::CalculateWorldSpaceGyro(
         x, y,
         motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
@@ -229,43 +250,50 @@ Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionDa
     return Vec3_New(x, y, 0.0f);
 }
 
-#else // Pure C version using the Valkirie fork's C wrapper
+#else // C Implementation using GamepadMotion.h
 
-/**
- * Uses GamepadMotionHelpers to calculate Player Space Gyro values (C wrapper version).
- *
- * @param motion The GamepadMotion object.
- * @param yawRelaxFactor Relaxation factor for yaw adjustment.
- * @return Transformed vector in Player Space.
- */
+  /**
+   * @brief Uses GamepadMotionHelper for Player Space transformation (C wrapper).
+   * @param motion Pointer to the GamepadMotion object.
+   * @param yawRelaxFactor Relaxation factor for yaw adjustment.
+   * @return Vector3 transformed in Player Space.
+   */
 static inline Vector3 IntegratePlayerSpaceGyro(GamepadMotion* motion, float yawRelaxFactor) {
-    float x, y;
+    if (!motion) {
+        DEBUG_LOG("Error: Motion object is NULL in Player Space Gyro.\n");
+        return Vec3_New(0.0f, 0.0f, 0.0f);
+    }
+
+    float x = 0.0f, y = 0.0f;
     ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
         motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
-    GetCalibratedGyro(motion, &x, &y, NULL);
+    GetPlayerSpaceGyro(motion, &x, &y, yawRelaxFactor);
 
-    return Vec3_New(x, y, 0.0f);
+    return Vec3_New(x, y, 0.0f); // Player Space gyro
 }
 
 /**
- * Uses GamepadMotionHelpers to calculate World Space Gyro values (C wrapper version).
- *
- * @param motion The GamepadMotion object.
+ * @brief Uses GamepadMotionHelper for World Space transformation (C wrapper).
+ * @param motion Pointer to the GamepadMotion object.
  * @param sideReductionThreshold Threshold for reducing side impacts.
- * @return Transformed vector in World Space.
+ * @return Vector3 transformed in World Space.
  */
 static inline Vector3 IntegrateWorldSpaceGyro(GamepadMotion* motion, float sideReductionThreshold) {
-    float x, y;
+    if (!motion) {
+        DEBUG_LOG("Error: Motion object is NULL in World Space Gyro.\n");
+        return Vec3_New(0.0f, 0.0f, 0.0f);
+    }
+
+    float x = 0.0f, y = 0.0f;
     ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
         motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
-    GetGravity(motion, &x, &y, NULL);
+    GetWorldSpaceGyro(motion, &x, &y, sideReductionThreshold);
 
-    return Vec3_New(x, y, 0.0f);
+    return Vec3_New(x, y, 0.0f); // World Space gyro
 }
+#endif
 
-#endif // __cplusplus
 #endif // ENABLE_GAMEPAD_MOTION_HELPERS
-
 
 // ---- Gyro Space Transformations ----
 
