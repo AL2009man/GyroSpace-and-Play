@@ -217,24 +217,26 @@ using GyroSpace::TransformToWorldSpace;
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
     float yawSensitivity, float pitchSensitivity,
     float rollSensitivity, float couplingFactor) {
-    // ---- Adjust Roll and Combine Inputs ----
+
+    // Adjust roll to compensate for coupling factor influence
     float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
+
+    // Apply scaling based on individual sensitivities
     Vector3 rawGyro = Vec3_New(
-        yaw * yawSensitivity - adjustedRoll,
+        (yaw * yawSensitivity) - adjustedRoll,
         pitch * pitchSensitivity,
-        0.0f
+        roll * rollSensitivity
     );
 
-    // ---- Define Local Transformation Matrix ----
-    Matrix4 localTransformMatrix = Matrix4_Identity(); // Identity matrix for simplicity
+    // Define Local Space Transformation Matrix
+    Matrix4 localTransformMatrix = Matrix4_Identity();
 
-    // ---- Apply Transformation ----
+    // Apply transformation matrix to gyro input
     Vector3 localGyro = MultiplyMatrixVector(localTransformMatrix, rawGyro);
 
-    // ---- Lean Fix for Roll ----
+    // Prevent unintended roll drift (Lean Fix)
     localGyro.z = -localGyro.z;
 
-    // ---- Return the Transformed Vector ----
     return localGyro;
 }
 
