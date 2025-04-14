@@ -184,7 +184,7 @@ static inline Vector3 GetGravityVector(void) {
 // ---- Gyro Space Transformations ----
 
 #ifdef __cplusplus
-namespace GyroSpace {
+extern "C" {
 #endif
 
     // Function declarations for gyro space transformations
@@ -203,7 +203,7 @@ namespace GyroSpace {
         float rollSensitivity);
 
 #ifdef __cplusplus
-} // namespace GyroSpace
+}
 #endif
 
 #ifdef __cplusplus
