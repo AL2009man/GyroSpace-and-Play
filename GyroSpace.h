@@ -39,7 +39,7 @@ extern "C" {
 #ifdef ENABLE_DEBUG_LOGS
 #ifdef __cplusplus
 #include <iostream>
-#define DEBUG_LOG(fmt, ...) std::cout << fmt << std::endl
+#define DEBUG_LOG(fmt, ...) std::cout << fmt
 #else
 #include <stdio.h>
 #define DEBUG_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -160,12 +160,12 @@ static inline void SetGravityVector(float x, float y, float z) {
         DEBUG_LOG("Error: Gravity vector contains NaN values. Retaining previous value.\n");
         return;
     }
-    float magnitude = sqrtf(x * x + y * y + z * z);
-    if (magnitude < EPSILON) {  // Prevent division by zero
-        DEBUG_LOG("Warning: Gravity vector magnitude is near zero. Retaining previous value.\n");
+    Vector3 newGravNorm = Vec3_New(x, y, z);
+    if (Vec3_IsZero(newGravNorm)) {
+        DEBUG_LOG("Warning: Gravity vector cannot be zero. Retaining previous value.\n");
         return;
     }
-    gravNorm = Vec3_Scale(Vec3_New(x, y, z), 1.0f / magnitude); // Normalize
+    gravNorm = Vec3_Normalize(newGravNorm);
 }
 
 /**
@@ -332,7 +332,7 @@ static inline Vector3 IntegrateWorldSpaceGyro(GamepadMotion* motion, float sideR
 // ---- Gyro Space Transformations ----
 
 #ifdef __cplusplus
-namespace GyroSpace {
+extern "C" {
 #endif
 
     // Function declarations for gyro space transformations
@@ -351,7 +351,7 @@ namespace GyroSpace {
         float rollSensitivity);
 
 #ifdef __cplusplus
-} // namespace GyroSpace
+}
 #endif
 
 #ifdef __cplusplus
@@ -364,22 +364,26 @@ using GyroSpace::TransformToWorldSpace;
  * Transforms gyro inputs to Local Space using a transformation matrix.
  */
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
-    float yawSensitivity, float pitchSensitivity, float rollSensitivity, float couplingFactor) {
-    // ---- Adjust Roll and Combine Inputs ----
+    float yawSensitivity, float pitchSensitivity,
+    float rollSensitivity, float couplingFactor) {
+
+    // Adjust roll to compensate for coupling factor influence
     float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
+
+    // Apply scaling based on individual sensitivities
     Vector3 rawGyro = Vec3_New(
-        yaw * yawSensitivity - adjustedRoll,
+        (yaw * yawSensitivity) - adjustedRoll,
         pitch * pitchSensitivity,
-        0.0f
+        roll * rollSensitivity
     );
 
-    // ---- Define Local Transformation Matrix ----
-    Matrix4 localTransformMatrix = Matrix4_Identity(); // Identity matrix for simplicity
+    // Define Local Space Transformation Matrix
+    Matrix4 localTransformMatrix = Matrix4_Identity();
 
-    // ---- Apply Transformation ----
+    // Apply transformation matrix to gyro input
     Vector3 localGyro = MultiplyMatrixVector(localTransformMatrix, rawGyro);
 
-    // ---- Lean Fix for Roll ----
+    // Prevent unintended roll drift (Lean Fix)
     localGyro.z = -localGyro.z;
 
     // ---- Return the Transformed Vector ----
@@ -389,8 +393,12 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 /**
  * Transforms gyro inputs to Player Space, considering gravity alignment.
  */
-Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm,
+Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
+    Vector3 gravNorm,
     float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
+    // ---- Use Global Gravity Vector ----
+    gravNorm = GetGravityVector();
+
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
     DEBUG_LOG("Using GamepadMotionHelper for Player Space Transformation.\n");
 
@@ -424,13 +432,20 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
     }
     gravNorm = Vec3_Normalize(gravNorm);
 
+    // ---- Adjust Inputs ----
     float adjustedYaw = (yaw_input * yawSensitivity) * gravNorm.y + pitch_input * gravNorm.z;
     float adjustedPitch = pitch_input * pitchSensitivity;
     float adjustedRoll = (roll_input * rollSensitivity) * gravNorm.x;
 
     Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, adjustedRoll);
 
+    // ---- Apply Player View Matrix ----
     Matrix4 playerViewMatrix = Matrix4_Identity(); // Placeholder matrix
+
+    Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
+
+    // ---- Return the Transformed Vector ----
+    return playerGyro;
     return MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
 #endif
 }
@@ -439,8 +454,11 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 /**
  * Transforms gyro inputs to World Space, considering gravity orientation.
  */
-Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm,
+Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
+    Vector3 gravNorm,
     float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
+    // ---- Use Global Gravity Vector ----
+    gravNorm = GetGravityVector();
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
     DEBUG_LOG("Using GamepadMotionHelper for World Space Transformation.\n");
 
@@ -470,22 +488,29 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     // Fallback logic for World Space transformation
     gravNorm = Vec3_Normalize(Vec3_IsZero(gravNorm) ? Vec3_New(0.0f, 1.0f, 0.0f) : gravNorm);
 
+    // ---- Map Inputs ----
     Vector3 rawGyro = Vec3_New(
         pitch_input * pitchSensitivity,
         -yaw_input * yawSensitivity,
         roll_input * rollSensitivity
     );
 
+    // ---- Align Inputs Using Gravity ----
     float gravDotPitch = Vec3_Dot(gravNorm, Vec3_New(1.0f, 0.0f, 0.0f));
     Vector3 pitchAxis = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitch));
-    pitchAxis = Vec3_Normalize(Vec3_IsZero(pitchAxis) ? Vec3_New(1.0f, 0.0f, 0.0f) : pitchAxis);
+    if (!Vec3_IsZero(pitchAxis)) {
+        pitchAxis = Vec3_Normalize(pitchAxis);
+    }
 
-    return Vec3_New(
+    // ---- Calculate Transformed Values ----
+    Vector3 worldGyro = Vec3_New(
         -Vec3_Dot(rawGyro, gravNorm),  // Yaw Alignment
         Vec3_Dot(rawGyro, pitchAxis), // Pitch Alignment
         rawGyro.z                     // Roll Mapping
     );
-#endif
+
+    // ---- Return the Transformed Vector ----
+    return worldGyro;
 }
 
 #ifdef __cplusplus
