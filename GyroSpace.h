@@ -1,4 +1,4 @@
-/*
+﻿/*
  * =======================================================================
  *
  * Gyro Space to Play - A plug-and-play Gyro Space Transformer code
@@ -202,15 +202,14 @@ static Vector3 gravNorm = { 0.0f, 1.0f, 0.0f };
 
 /**
  * Updates the global gravity vector using sensor fusion.
- *
- * This blends the existing gravity estimate with the accelerometer reading,
- * ensuring smoother transitions without sudden jumps.
- *
- * @param accel The raw accelerometer reading.
- * @param gyroRotation The gyroscope-based rotation adjustment.
- * @param fusionFactor A smoothing factor (suggest ~0.02 to 0.10).
  */
 static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, float fusionFactor) {
+	// Validate fusionFactor
+	if (fusionFactor < 0.0f || fusionFactor > 1.0f) {
+		DEBUG_LOG("Error: Invalid fusionFactor (%f). Must be between 0.0 and 1.0.\n", fusionFactor);
+		return;
+	}
+
 	// Normalize the accelerometer input to ensure valid gravity direction
 	Vector3 accelNorm = Vec3_Normalize(accel);
 
@@ -219,18 +218,24 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
 
 	// Blend the rotated gravity vector with accelerometer data using linear interpolation
 	gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, fusionFactor);
-	gravNorm = Vec3_Normalize(gravNorm);
+
+	// Normalize the updated gravity vector
+	if (!Vec3_IsZero(gravNorm)) {
+		gravNorm = Vec3_Normalize(gravNorm);
+	}
+	else {
+		DEBUG_LOG("Warning: Gravity vector became near-zero. Resetting to default (0,1,0).\n");
+		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	}
+
+	DEBUG_LOG("UpdateGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
 }
 
 /**
- * Sets and normalizes the gravity vector manually. If the input is zero or NaN,
- * it retains the previous value.
- *
- * @param x X-component of the gravity vector.
- * @param y Y-component of the gravity vector.
- * @param z Z-component of the gravity vector.
+ * Sets the gravity vector manually and ensures normalization.
  */
 static inline void SetGravityVector(float x, float y, float z) {
+	// Validate inputs
 	if (isnan(x) || isnan(y) || isnan(z)) {
 		DEBUG_LOG("Error: Gravity vector contains NaN values. Resetting to default (0,1,0).\n");
 		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
@@ -245,23 +250,34 @@ static inline void SetGravityVector(float x, float y, float z) {
 		return;
 	}
 
+	// Normalize and update the gravity vector
 	gravNorm = Vec3_Normalize(newGravNorm);
-}
 
-/**
- * Resets the gravity vector to its default value (0, 1, 0).
- */
-static inline void ResetGravityVector(void) {
-	gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	DEBUG_LOG("SetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
 }
 
 /**
  * Retrieves the current normalized gravity vector.
- *
- * @return The normalized gravity vector.
  */
 static inline Vector3 GetGravityVector(void) {
+	DEBUG_LOG("GetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
 	return gravNorm;
+}
+
+/**
+ * Simulates receiving new sensor data and updates the gravity vector.
+ */
+void ProcessSensorData(Vector3 accel, Vector3 gyroRotation, float fusionFactor) {
+	// Call UpdateGravityVector with the new sensor data
+	UpdateGravityVector(accel, gyroRotation, fusionFactor);
+}
+
+/**
+ * Simulates manually setting the gravity vector.
+ */
+void AdjustGravityVectorManually(float x, float y, float z) {
+	// Call SetGravityVector with the provided values
+	SetGravityVector(x, y, z);
 }
 
 // ---- Gyro Space Transformations ----
@@ -355,21 +371,20 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// ---- Retrieve updated gravity vector ----
-	gravNorm = GetGravityVector();
-
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
-	float tiltFactor = fabsf(gravNorm.y);
-	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);  // Smoother transition
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// ---- Define Yaw Relaxation Factor ----
 	float yawRelaxFactor = 1.41;
 
 	// ---- Adjust Inputs Dynamically ----
-	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;  // World yaw direction
-	float localYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);  // Local yaw magnitude
+	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+	float localYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
 	float adjustedYaw = worldYaw * yawRelaxFactor + localYaw * (1.0f - yawRelaxFactor);
 	float adjustedPitch = pitch_input * pitchSensitivity;
+
+	// ---- Refine Roll Adjustment ----
 	float adjustedRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
 
 	// ---- Flip roll BEFORE matrix transformation ----
@@ -390,12 +405,9 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// ---- Retrieve updated gravity vector ----
-	gravNorm = GetGravityVector();
-
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
-	float tiltFactor = fabsf(gravNorm.y);
-	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// ---- Adjust Inputs Dynamically ----
 	Vector3 rawGyro = Vec3_New(
@@ -410,7 +422,6 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	// ---- Align Pitch Using Gravity ----
 	float gravDotPitch = Vec3_Dot(gravNorm, Vec3_New(1.0f, 0.0f, 0.0f));
 	Vector3 pitchAxis = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitch));
-
 	if (!Vec3_IsZero(pitchAxis)) {
 		pitchAxis = Vec3_Normalize(pitchAxis);
 	}
@@ -418,7 +429,6 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	// ---- Apply Gravity-Based Roll Adjustment ----
 	float gravDotRoll = Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, 1.0f));
 	Vector3 rollAxis = Vec3_Subtract(Vec3_New(0.0f, 0.0f, 1.0f), Vec3_Scale(gravNorm, gravDotRoll));
-
 	if (!Vec3_IsZero(rollAxis)) {
 		rollAxis = Vec3_Normalize(rollAxis);
 	}
