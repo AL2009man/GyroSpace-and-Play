@@ -320,16 +320,32 @@ extern "C" {
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input,
 	float yawSensitivity, float pitchSensitivity, float rollSensitivity, float couplingFactor) {
 
+	static float smoothedTiltFactor = 1.0f; // Persistent variable to store the smoothed tilt factor
 	Vector3 gravNorm = GetGravityVector();
 
 	// ---- Compute Tilt Factor ----
 	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f); // Exponential smoothing for sharper transition
-	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
+
+	// ---- Smooth the Tilt Factor ----
+	const float smoothingFactor = 0.1f; // Adjust this value for faster/slower transitions
+	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Adjust Dynamic Sensitivity ----
-	float dynamicYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
-	float dynamicPitch = pitch_input * pitchSensitivity;
-	float dynamicRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
+	float dynamicYaw = yaw_input * yawSensitivity; // Focus on yaw for yaw adjustments
+
+	// Refine dynamicPitch to include dynamic scaling
+	float dynamicPitch = (smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input);
+
+	// Refine dynamicRoll to retain more sensitivity
+	float dynamicRoll = (smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * roll_input);
+
+	// ---- Debug Logs ----
+	DEBUG_LOG("Dynamic Orientation Adjustment:\n");
+	DEBUG_LOG("  Roll Input: %f, Yaw Input: %f, Pitch Input: %f\n", roll_input, yaw_input, pitch_input);
+	DEBUG_LOG("  Gravity Vector: (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
+	DEBUG_LOG("  Tilt Factor: %f, Smoothed Tilt Factor: %f\n", tiltFactor, smoothedTiltFactor);
+	DEBUG_LOG("  Dynamic Yaw: %f, Dynamic Pitch: %f, Dynamic Roll: %f\n", dynamicYaw, dynamicPitch, dynamicRoll);
 
 	// ---- Apply Local Space transformation first ----
 	Vector3 localGyro = TransformToLocalSpace(dynamicYaw, dynamicPitch, dynamicRoll, yawSensitivity, pitchSensitivity, rollSensitivity, couplingFactor);
@@ -352,15 +368,26 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	float yawSensitivity, float pitchSensitivity,
 	float rollSensitivity, float couplingFactor) {
 
+	// ---- Persistent Smoothed Tilt Factor ----
+	static float smoothedTiltFactor = 1.0f;
+
+	// ---- Compute Tilt Factor ----
+	float tiltFactor = powf(fabsf(GetGravityVector().y), 0.75f);
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
+
+	// ---- Smooth the Tilt Factor ----
+	const float smoothingFactor = 0.1f; // Adjust for faster/slower transitions
+	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
+
 	// ---- Adjust roll to compensate for yaw-roll coupling ----
-	float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
+	float adjustedRoll = (smoothedTiltFactor * roll * rollSensitivity) - (yaw * couplingFactor);
 	DEBUG_LOG("Adjusted Roll (Yaw-Roll Coupling): %f\n", adjustedRoll);
 
-	// ---- Apply individual sensitivity scaling ----
+	// ---- Apply individual sensitivity scaling with smoothed tilt factor ----
 	Vector3 rawGyro = Vec3_New(
 		(yaw * yawSensitivity) - adjustedRoll,
-		pitch * pitchSensitivity,
-		roll * rollSensitivity
+		(smoothedTiltFactor * pitch * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch),
+		(smoothedTiltFactor * roll * rollSensitivity) + ((1.0f - smoothedTiltFactor) * roll)
 	);
 	DEBUG_LOG("Raw Gyro (After Sensitivity Scaling): (%f, %f, %f)\n", rawGyro.x, rawGyro.y, rawGyro.z);
 
@@ -385,20 +412,25 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	}
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
-	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);  // Smoother transition
+	static float smoothedTiltFactor = 1.0f;
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
+
+	// Smooth the tilt factor
+	const float smoothingFactor = 0.1f;
+	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Define Yaw Relaxation Factor ----
 	float yawRelaxFactor = 1.41;
 
 	// ---- Adjust Inputs Dynamically ----
 	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
-	float localYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
+	float localYaw = (smoothedTiltFactor * yaw_input * yawSensitivity) + ((1.0f - smoothedTiltFactor) * roll_input * rollSensitivity);
 	float adjustedYaw = worldYaw * yawRelaxFactor + localYaw * (1.0f - yawRelaxFactor);
-	float adjustedPitch = pitch_input * pitchSensitivity;
 
-	// ---- Refine Roll Adjustment ----
-	float adjustedRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
+	// Refine pitch and roll adjustments
+	float adjustedPitch = (smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input);
+	float adjustedRoll = (smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * yaw_input * yawSensitivity);
 
 	// ---- Flip roll BEFORE matrix transformation ----
 	adjustedRoll = -adjustedRoll;
@@ -425,14 +457,19 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	}
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
+	static float smoothedTiltFactor = 1.0f;
 	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
+	// Smooth the tilt factor
+	const float smoothingFactor = 0.1f;
+	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
+
 	// ---- Adjust Inputs Dynamically ----
 	Vector3 rawGyro = Vec3_New(
-		pitch_input * pitchSensitivity,
-		-yaw_input * yawSensitivity,
-		(blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity)
+		(smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input),
+		-(yaw_input * yawSensitivity),
+		(smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * yaw_input * yawSensitivity)
 	);
 
 	// ---- Flip Roll BEFORE Gravity Alignment ----
