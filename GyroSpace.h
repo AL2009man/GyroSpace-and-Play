@@ -420,24 +420,15 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	const float smoothingFactor = 0.1f;
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
-	// ---- Define Yaw Relaxation Factor ----
-	float yawRelaxFactor = 1.41;
+	// ---- Horizontal Output: Yaw + Roll ----
+	float horizontalOutput = (yaw_input * gravNorm.y) + (roll_input * gravNorm.z);
 
-	// ---- Adjust Inputs Dynamically ----
-	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
-	float localYaw = (smoothedTiltFactor * yaw_input * yawSensitivity) + ((1.0f - smoothedTiltFactor) * roll_input * rollSensitivity);
-	float adjustedYaw = worldYaw * yawRelaxFactor + localYaw * (1.0f - yawRelaxFactor);
-
-	// Refine pitch and roll adjustments
-	float adjustedPitch = (smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input);
-	float adjustedRoll = (smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * yaw_input * yawSensitivity);
-
-	// ---- Flip roll BEFORE matrix transformation ----
-	adjustedRoll = -adjustedRoll;
+	// ---- Vertical Output: Local Pitch ----
+	float verticalOutput = pitch_input * pitchSensitivity;
 
 	// ---- Apply Player View Matrix ----
 	Matrix4 playerViewMatrix = Matrix4_Identity();
-	Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, adjustedRoll);
+	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, 0.0f);
 	Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
@@ -465,36 +456,21 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	const float smoothingFactor = 0.1f;
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
-	// ---- Adjust Inputs Dynamically ----
-	Vector3 rawGyro = Vec3_New(
-		(smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input),
-		-(yaw_input * yawSensitivity),
-		(smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * yaw_input * yawSensitivity)
-	);
+	// ---- Horizontal Output: All Rotation Around Gravity Axis ----
+	float horizontalOutput = (yaw_input * gravNorm.y) + (roll_input * gravNorm.z);
 
-	// ---- Flip Roll BEFORE Gravity Alignment ----
-	rawGyro.z = -rawGyro.z;
+	// ---- Vertical Output: World Pitch ----
+	float verticalOutput = pitch_input * gravNorm.y * pitchSensitivity;
 
-	// ---- Align Pitch Using Gravity ----
-	float gravDotPitch = Vec3_Dot(gravNorm, Vec3_New(1.0f, 0.0f, 0.0f));
-	Vector3 pitchAxis = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitch));
-	if (!Vec3_IsZero(pitchAxis)) {
-		pitchAxis = Vec3_Normalize(pitchAxis);
+	// ---- Disable Vertical Movement When Tilted on Side ----
+	if (fabsf(gravNorm.y) < 0.5f) {
+		verticalOutput = 0.0f;
 	}
 
-	// ---- Apply Gravity-Based Roll Adjustment ----
-	float gravDotRoll = Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, 1.0f));
-	Vector3 rollAxis = Vec3_Subtract(Vec3_New(0.0f, 0.0f, 1.0f), Vec3_Scale(gravNorm, gravDotRoll));
-	if (!Vec3_IsZero(rollAxis)) {
-		rollAxis = Vec3_Normalize(rollAxis);
-	}
-
-	// ---- Calculate Transformed Values ----
-	Vector3 worldGyro = Vec3_New(
-		-Vec3_Dot(rawGyro, gravNorm),
-		Vec3_Dot(rawGyro, pitchAxis),
-		Vec3_Dot(rawGyro, rollAxis)
-	);
+	// ---- Apply Gravity-Based Matrix ----
+	Matrix4 worldViewMatrix = Matrix4_Identity();
+	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, 0.0f);
+	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
 	return worldGyro;
