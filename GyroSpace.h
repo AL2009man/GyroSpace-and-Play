@@ -326,8 +326,8 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	// ---- Apply transformation matrix to gyro input ----
 	Vector3 localGyro = MultiplyMatrixVector(localTransformMatrix, rawGyro);
 
-	// ---- Prevent unintended roll drift (Lean Fix) ----
-	localGyro.z = -localGyro.z;
+	// ---- Refined Roll Drift Prevention ----
+	localGyro.z = -localGyro.z * (1.0f - couplingFactor);
 
 	// ---- Return the transformed vector ----
 	return localGyro;
