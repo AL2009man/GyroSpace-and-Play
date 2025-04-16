@@ -186,10 +186,13 @@ static inline Matrix4 Matrix4_Identity() {
  * Multiplies a matrix by a vector (row-major order).
  */
 static inline Vector3 MultiplyMatrixVector(Matrix4 matrix, Vector3 vector) {
+	// Assume w = 1.0 for 3D vectors
+	float w = 1.0f;
+
 	return Vec3_New(
-		matrix.m[0][0] * vector.x + matrix.m[1][0] * vector.y + matrix.m[2][0] * vector.z + matrix.m[3][0],
-		matrix.m[0][1] * vector.x + matrix.m[1][1] * vector.y + matrix.m[2][1] * vector.z + matrix.m[3][1],
-		matrix.m[0][2] * vector.x + matrix.m[1][2] * vector.y + matrix.m[2][2] * vector.z + matrix.m[3][2]
+		matrix.m[0][0] * vector.x + matrix.m[1][0] * vector.y + matrix.m[2][0] * vector.z + matrix.m[3][0] * w,
+		matrix.m[0][1] * vector.x + matrix.m[1][1] * vector.y + matrix.m[2][1] * vector.z + matrix.m[3][1] * w,
+		matrix.m[0][2] * vector.x + matrix.m[1][2] * vector.y + matrix.m[2][2] * vector.z + matrix.m[3][2] * w
 	);
 }
 
@@ -207,6 +210,13 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
 	// Validate fusionFactor
 	if (fusionFactor < 0.0f || fusionFactor > 1.0f) {
 		DEBUG_LOG("Error: Invalid fusionFactor (%f). Must be between 0.0 and 1.0.\n", fusionFactor);
+		return;
+	}
+
+	// Validate inputs for NaN values
+	if (isnan(accel.x) || isnan(accel.y) || isnan(accel.z) ||
+		isnan(gyroRotation.x) || isnan(gyroRotation.y) || isnan(gyroRotation.z)) {
+		DEBUG_LOG("Error: NaN values detected in sensor inputs. Skipping update.\n");
 		return;
 	}
 
@@ -344,6 +354,7 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 
 	// ---- Adjust roll to compensate for yaw-roll coupling ----
 	float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
+	DEBUG_LOG("Adjusted Roll (Yaw-Roll Coupling): %f\n", adjustedRoll);
 
 	// ---- Apply individual sensitivity scaling ----
 	Vector3 rawGyro = Vec3_New(
@@ -351,18 +362,14 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 		pitch * pitchSensitivity,
 		roll * rollSensitivity
 	);
-
-	// ---- Define Local Space Transformation Matrix ----
-	Matrix4 localTransformMatrix = Matrix4_Identity();
-
-	// ---- Apply transformation matrix to gyro input ----
-	Vector3 localGyro = MultiplyMatrixVector(localTransformMatrix, rawGyro);
+	DEBUG_LOG("Raw Gyro (After Sensitivity Scaling): (%f, %f, %f)\n", rawGyro.x, rawGyro.y, rawGyro.z);
 
 	// ---- Refined Roll Drift Prevention ----
-	localGyro.z = -localGyro.z * (1.0f - couplingFactor);
+	rawGyro.z = -rawGyro.z * (1.0f - couplingFactor);
+	DEBUG_LOG("Raw Gyro (After Roll Drift Prevention): (%f, %f, %f)\n", rawGyro.x, rawGyro.y, rawGyro.z);
 
 	// ---- Return the transformed vector ----
-	return localGyro;
+	return rawGyro;
 }
 
 /**
@@ -370,6 +377,12 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
  */
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
+
+	// ---- Validate Gravity Vector ----
+	if (Vec3_IsZero(gravNorm)) {
+		DEBUG_LOG("Warning: Gravity vector is near-zero. Using default gravity vector.\n");
+		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	}
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
 	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);  // Smoother transition
@@ -404,6 +417,12 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
  */
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
+
+	// ---- Validate Gravity Vector ----
+	if (Vec3_IsZero(gravNorm)) {
+		DEBUG_LOG("Warning: Gravity vector is near-zero. Using default gravity vector.\n");
+		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	}
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
 	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
