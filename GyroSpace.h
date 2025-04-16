@@ -381,7 +381,6 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 
 	// ---- Adjust roll to compensate for yaw-roll coupling ----
 	float adjustedRoll = (smoothedTiltFactor * roll * rollSensitivity) - (yaw * couplingFactor);
-	DEBUG_LOG("Adjusted Roll (Yaw-Roll Coupling): %f\n", adjustedRoll);
 
 	// ---- Apply individual sensitivity scaling with smoothed tilt factor ----
 	Vector3 localGyro = Vec3_New(
@@ -389,11 +388,9 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 		(smoothedTiltFactor * pitch * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch),
 		(smoothedTiltFactor * roll * rollSensitivity) + ((1.0f - smoothedTiltFactor) * roll)
 	);
-	DEBUG_LOG("LocalGyro (After Sensitivity Scaling): (%f, %f, %f)\n", localGyro.x, localGyro.y, localGyro.z);
 
 	// ---- Refined Roll Drift Prevention ----
 	localGyro.z = -localGyro.z * (1.0f - couplingFactor);
-	DEBUG_LOG("LocalGyro (After Roll Drift Prevention): (%f, %f, %f)\n", localGyro.x, localGyro.y, localGyro.z);
 
 	// ---- Return the transformed vector ----
 	return localGyro;
