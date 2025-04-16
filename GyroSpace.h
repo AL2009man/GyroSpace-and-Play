@@ -343,24 +343,25 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	gravNorm = GetGravityVector();
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
-	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
+	float tiltFactor = fabsf(gravNorm.y);
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
 
+	// ---- Define Yaw Relaxation Factor ----
+	float yawRelaxFactor = 1.41;
+
 	// ---- Adjust Inputs Dynamically ----
-	float adjustedYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
+	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;  // World yaw direction
+	float localYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);  // Local yaw magnitude
+	float adjustedYaw = worldYaw * yawRelaxFactor + localYaw * (1.0f - yawRelaxFactor);
 	float adjustedPitch = pitch_input * pitchSensitivity;
 	float adjustedRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
-
-	// ---- Define Roll Axis Independent of Gravity ----
-	Vector3 rollAxis = Vec3_New(1.0f, 0.0f, 0.0f);
 
 	// ---- Flip roll BEFORE matrix transformation ----
 	adjustedRoll = -adjustedRoll;
 
 	// ---- Apply Player View Matrix ----
-	Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, adjustedRoll);
 	Matrix4 playerViewMatrix = Matrix4_Identity();
-
+	Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, adjustedRoll);
 	Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
@@ -377,7 +378,7 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	gravNorm = GetGravityVector();
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
-	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
+	float tiltFactor = fabsf(gravNorm.y);
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
 
 	// ---- Adjust Inputs Dynamically ----
@@ -398,11 +399,19 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 		pitchAxis = Vec3_Normalize(pitchAxis);
 	}
 
+	// ---- Apply Gravity-Based Roll Adjustment ----
+	float gravDotRoll = Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, 1.0f));
+	Vector3 rollAxis = Vec3_Subtract(Vec3_New(0.0f, 0.0f, 1.0f), Vec3_Scale(gravNorm, gravDotRoll));
+
+	if (!Vec3_IsZero(rollAxis)) {
+		rollAxis = Vec3_Normalize(rollAxis);
+	}
+
 	// ---- Calculate Transformed Values ----
 	Vector3 worldGyro = Vec3_New(
 		-Vec3_Dot(rawGyro, gravNorm),
 		Vec3_Dot(rawGyro, pitchAxis),
-		rawGyro.z
+		Vec3_Dot(rawGyro, rollAxis)
 	);
 
 	// ---- Return the transformed vector ----
