@@ -324,11 +324,11 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	Vector3 gravNorm = GetGravityVector();
 
 	// ---- Compute Tilt Factor ----
-	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f); // Exponential smoothing for sharper transition
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.4f); // Adjusted for more sensitivity retention
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// ---- Smooth the Tilt Factor ----
-	const float smoothingFactor = 0.1f; // Adjust this value for faster/slower transitions
+	const float smoothingFactor = 0.25f; // Increased for better responsiveness
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Adjust Dynamic Sensitivity ----
@@ -338,7 +338,7 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	float dynamicPitch = (smoothedTiltFactor * pitch_input * pitchSensitivity) + ((1.0f - smoothedTiltFactor) * pitch_input);
 
 	// Refine dynamicRoll to retain more sensitivity
-	float dynamicRoll = (smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * roll_input);
+	float dynamicRoll = (smoothedTiltFactor * roll_input * rollSensitivity) + ((1.0f - smoothedTiltFactor) * roll_input * 0.8f); // Adjusted for better responsiveness
 
 	// ---- Debug Logs ----
 	DEBUG_LOG("Dynamic Orientation Adjustment:\n");
@@ -372,11 +372,11 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	static float smoothedTiltFactor = 1.0f;
 
 	// ---- Compute Tilt Factor ----
-	float tiltFactor = powf(fabsf(GetGravityVector().y), 0.75f);
+	float tiltFactor = powf(fabsf(GetGravityVector().y), 0.5f); // Reduced exponent for smoother scaling
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// ---- Smooth the Tilt Factor ----
-	const float smoothingFactor = 0.1f; // Adjust for faster/slower transitions
+	const float smoothingFactor = 0.2f; // Slightly increased for more responsiveness
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Adjust roll to compensate for yaw-roll coupling ----
@@ -413,18 +413,19 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
 	static float smoothedTiltFactor = 1.0f;
-	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.5f); // Reduced exponent for smoother scaling
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// Smooth the tilt factor
-	const float smoothingFactor = 0.1f;
+	const float smoothingFactor = 0.2f; // Slightly increased for more responsiveness
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Horizontal Output: Yaw + Roll ----
 	float horizontalOutput = (yaw_input * gravNorm.y) + (roll_input * gravNorm.z);
 
-	// ---- Vertical Output: Local Pitch ----
+	// ---- Vertical Output: Local Pitch (Fixed Scaling Instead of Cutoff) ----
 	float verticalOutput = pitch_input * pitchSensitivity;
+	verticalOutput *= clamp(fabsf(gravNorm.y) * 2.0f, 0.0f, 1.0f); // Scales sensitivity instead of disabling movement
 
 	// ---- Apply Player View Matrix ----
 	Matrix4 playerViewMatrix = Matrix4_Identity();
@@ -449,11 +450,11 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 
 	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
 	static float smoothedTiltFactor = 1.0f;
-	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f);
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.5f); // Adjusted for better sensitivity retention
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f);
 
 	// Smooth the tilt factor
-	const float smoothingFactor = 0.1f;
+	const float smoothingFactor = 0.2f; // Increased for improved responsiveness
 	smoothedTiltFactor = smoothedTiltFactor + smoothingFactor * (blendAmount - smoothedTiltFactor);
 
 	// ---- Horizontal Output: All Rotation Around Gravity Axis ----
@@ -462,10 +463,8 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	// ---- Vertical Output: World Pitch ----
 	float verticalOutput = pitch_input * gravNorm.y * pitchSensitivity;
 
-	// ---- Disable Vertical Movement When Tilted on Side ----
-	if (fabsf(gravNorm.y) < 0.5f) {
-		verticalOutput = 0.0f;
-	}
+	// ---- Scale Vertical Movement for Smooth Transitions ----
+	verticalOutput *= clamp(fabsf(gravNorm.y) * 2.0f, 0.25f, 1.0f); // Prevents overly sharp drop-offs
 
 	// ---- Apply Gravity-Based Matrix ----
 	Matrix4 worldViewMatrix = Matrix4_Identity();
