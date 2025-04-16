@@ -292,31 +292,29 @@ extern "C" {
  * Dynamically adjusts gyro space transformation based on controller orientation.
  */
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input,
-	float yawSensitivity, float pitchSensitivity, float rollSensitivity, bool useWorldSpace) {
+	float yawSensitivity, float pitchSensitivity, float rollSensitivity, float couplingFactor) {
 
 	Vector3 gravNorm = GetGravityVector();
 
 	// ---- Compute Tilt Factor ----
-	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
-
-	// ---- Blend between modes smoothly ----
+	float tiltFactor = powf(fabsf(gravNorm.y), 0.75f); // Exponential smoothing for sharper transition
 	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
 
-	// ---- Corrected Manual Float Lerp ----
+	// ---- Adjust Dynamic Sensitivity ----
 	float dynamicYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
 	float dynamicPitch = pitch_input * pitchSensitivity;
 	float dynamicRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
 
-	// ---- Apply Either Player or World Space Transformation ----
-	if (useWorldSpace) {
-		return TransformToWorldSpace(dynamicYaw, dynamicPitch, dynamicRoll, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity);
-	}
-	else {
-		return TransformToPlayerSpace(dynamicYaw, dynamicPitch, dynamicRoll, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity);
-	}
+	// ---- Apply Local Space transformation first ----
+	Vector3 localGyro = TransformToLocalSpace(dynamicYaw, dynamicPitch, dynamicRoll, yawSensitivity, pitchSensitivity, rollSensitivity, couplingFactor);
 
-	// ---- Default Fallback ----
-	return Vec3_New(0.0f, 0.0f, 0.0f);
+	// ---- Further transformation into either Player or World Space ----
+	Vector3 adjustedGyro = (gravNorm.y > 0.5f)
+		? TransformToPlayerSpace(localGyro.x, localGyro.y, localGyro.z, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity)
+		: TransformToWorldSpace(localGyro.x, localGyro.y, localGyro.z, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity);
+
+	// ---- Return final transformed vector ----
+	return adjustedGyro;
 }
 
 // Gyro Space Transformation Functions
