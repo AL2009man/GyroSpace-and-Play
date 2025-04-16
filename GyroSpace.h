@@ -32,9 +32,6 @@ extern "C" {
 #define EPSILON 1e-5
 #endif
 
-#undef bool
-#define bool s32
-
  // ---- Debugging and Logging ----
 #ifdef ENABLE_DEBUG_LOGS
 #ifdef __cplusplus
