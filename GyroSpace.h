@@ -261,23 +261,48 @@ extern "C" {
 		float rollSensitivity, float couplingFactor);
 
 	Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
-		Vector3 gravNorm,
-		float yawSensitivity, float pitchSensitivity, float rollSensitivity);
+		Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity);
 
 	Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
-		Vector3 gravNorm,
-		float yawSensitivity, float pitchSensitivity, float rollSensitivity);
-
+		Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity);
 
 #ifdef __cplusplus
 }
 #endif
 
-#ifdef __cplusplus
-using GyroSpace::TransformToLocalSpace;
-using GyroSpace::TransformToPlayerSpace;
-using GyroSpace::TransformToWorldSpace;
-#endif
+
+// Dynamic Orientation Adjustment
+
+/**
+ * Dynamically adjusts gyro space transformation based on controller orientation.
+ */
+Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input,
+	float yawSensitivity, float pitchSensitivity, float rollSensitivity, bool useWorldSpace) {
+
+	Vector3 gravNorm = GetGravityVector();
+
+	// ---- Compute Tilt Factor ----
+	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
+
+	// ---- Blend between modes smoothly ----
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+
+	// ---- Corrected Manual Float Lerp ----
+	float dynamicYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
+	float dynamicPitch = pitch_input * pitchSensitivity;
+	float dynamicRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
+
+	// ---- Apply Either Player or World Space Transformation ----
+	if (useWorldSpace) {
+		return TransformToWorldSpace(dynamicYaw, dynamicPitch, dynamicRoll, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity);
+	}
+	else {
+		return TransformToPlayerSpace(dynamicYaw, dynamicPitch, dynamicRoll, gravNorm, yawSensitivity, pitchSensitivity, rollSensitivity);
+	}
+
+	// ---- Default Fallback ----
+	return Vec3_New(0.0f, 0.0f, 0.0f);
+}
 
 // Gyro Space Transformation Functions
 
@@ -317,18 +342,20 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// ---- Override gravNorm to ensure correct gravity is used ----
+	// ---- Retrieve updated gravity vector ----
 	gravNorm = GetGravityVector();
 
-	// ---- Adjust Inputs ----
-	float adjustedYaw = (yaw_input * yawSensitivity) * gravNorm.y + pitch_input * gravNorm.z;
+	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
+	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+
+	// ---- Adjust Inputs Dynamically ----
+	float adjustedYaw = (blendAmount * yaw_input * yawSensitivity) + ((1.0f - blendAmount) * roll_input * rollSensitivity);
 	float adjustedPitch = pitch_input * pitchSensitivity;
+	float adjustedRoll = (blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity);
 
-	// ---- Define roll axis independent of gravity ----
+	// ---- Define Roll Axis Independent of Gravity ----
 	Vector3 rollAxis = Vec3_New(1.0f, 0.0f, 0.0f);
-
-	// ---- Apply roll transformation directly from input ----
-	float adjustedRoll = roll_input * rollSensitivity;
 
 	// ---- Flip roll BEFORE matrix transformation ----
 	adjustedRoll = -adjustedRoll;
@@ -349,23 +376,21 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// ---- Override gravNorm to ensure correct gravity is used ----
+	// ---- Retrieve updated gravity vector ----
 	gravNorm = GetGravityVector();
 
-	// ---- Map Inputs ----
+	// ---- Compute Tilt Factor for Dynamic Orientation Adjustment ----
+	float tiltFactor = fabsf(gravNorm.y); // Higher means Yaw Mode, lower means Roll Mode
+	float blendAmount = clamp(tiltFactor, 0.0f, 1.0f); // Ensures smooth switching
+
+	// ---- Adjust Inputs Dynamically ----
 	Vector3 rawGyro = Vec3_New(
 		pitch_input * pitchSensitivity,
 		-yaw_input * yawSensitivity,
-		roll_input * rollSensitivity
+		(blendAmount * roll_input * rollSensitivity) + ((1.0f - blendAmount) * yaw_input * yawSensitivity)
 	);
 
-	// ---- Define roll axis independent of gravity ----
-	Vector3 rollAxis = Vec3_New(1.0f, 0.0f, 0.0f);
-
-	// ---- Apply roll transformation directly from input ----
-	rawGyro.z = roll_input * rollSensitivity;
-
-	// ---- Flip roll BEFORE gravity alignment ----
+	// ---- Flip Roll BEFORE Gravity Alignment ----
 	rawGyro.z = -rawGyro.z;
 
 	// ---- Align Pitch Using Gravity ----
