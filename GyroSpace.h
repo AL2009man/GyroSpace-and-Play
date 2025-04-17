@@ -327,7 +327,6 @@ extern "C" {
 
 
 // Dynamic Orientation Adjustment
-
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
 
 	// ---- Input Validation ----
@@ -345,8 +344,20 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs):\n");
 	DEBUG_LOG("  Roll Input: %f, Yaw Input: %f, Pitch Input: %f\n", roll_input, yaw_input, pitch_input);
 
-	// ---- Return raw inputs as a vector ----
-	return Vec3_New(yaw_input, pitch_input, roll_input);
+	// ---- Combine Inputs ----
+	// Create individual vectors for yaw, pitch, and roll
+	Vector3 yawVector = Vec3_New(yaw_input, 0.0f, 0.0f);
+	Vector3 pitchVector = Vec3_New(0.0f, pitch_input, 0.0f);
+	Vector3 rollVector = Vec3_New(0.0f, 0.0f, roll_input);
+
+	// Combine the vectors
+	Vector3 combinedVector = Vec3_Add(Vec3_Add(yawVector, pitchVector), rollVector);
+
+	// ---- Normalize the Output ----
+	Vector3 normalizedVector = Vec3_Normalize(combinedVector);
+
+	// ---- Return the Combined Orientation ----
+	return normalizedVector;
 }
 
 // Gyro Space Transformation Functions
@@ -443,13 +454,14 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 
 	// ---- Adjust Roll and Pitch Based on Gravity ----
 	float horizontalRoll = adjustedRoll * gravNorm.z;
+	float verticalRoll = adjustedRoll * gravNorm.x;
 	float verticalPitch = adjustedPitch * gravNorm.y;
 
 	// ---- Horizontal Output: Yaw + Roll ----
 	float horizontalOutput = adjustedYaw + horizontalRoll;
 
-	// ---- Vertical Output: Adjusted Pitch ----
-	float verticalOutput = verticalPitch;
+	// ---- Vertical Output: Pitch + Roll ----
+	float verticalOutput = verticalPitch + verticalRoll;
 
 	// ---- Apply World View Matrix ----
 	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, 0.0f);
