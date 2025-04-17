@@ -362,7 +362,6 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 
 // Gyro Space Transformation Functions
 
-
 /**
  * Transforms gyro inputs to Local Space
  */
@@ -391,6 +390,9 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	return localGyro;
 }
 
+/**
+ * Transforms gyro inputs to Player Space
+ */
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
