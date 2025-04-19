@@ -416,6 +416,7 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	// ---- Adjust Roll and Pitch Based on Gravity ----
 	float horizontalRoll = adjustedRoll * gravNorm.z;
 	float verticalPitch = adjustedPitch * gravNorm.y;
+	float depthRoll = adjustedRoll * gravNorm.x;
 
 	// ---- Horizontal Output: Yaw + Roll ----
 	float horizontalOutput = adjustedYaw + horizontalRoll;
@@ -423,8 +424,11 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	// ---- Vertical Output: Adjusted Pitch ----
 	float verticalOutput = verticalPitch;
 
+	// ---- Z Output: Roll Depth Adjustment ----
+	float zOutput = depthRoll;
+
 	// ---- Apply Player View Matrix ----
-	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, 0.0f);
+	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, zOutput);
 	Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
@@ -458,6 +462,7 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	float horizontalRoll = adjustedRoll * gravNorm.z;
 	float verticalRoll = adjustedRoll * gravNorm.x;
 	float verticalPitch = adjustedPitch * gravNorm.y;
+	float depthRoll = adjustedRoll * gravNorm.y; 
 
 	// ---- Horizontal Output: Yaw + Roll ----
 	float horizontalOutput = adjustedYaw + horizontalRoll;
@@ -465,8 +470,11 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
 	// ---- Vertical Output: Pitch + Roll ----
 	float verticalOutput = verticalPitch + verticalRoll;
 
+	// ---- Z Output: Roll Depth Adjustment ----
+	float zOutput = depthRoll;
+
 	// ---- Apply World View Matrix ----
-	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, 0.0f);
+	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, zOutput);
 	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
