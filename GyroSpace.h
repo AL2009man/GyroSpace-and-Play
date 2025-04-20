@@ -149,7 +149,7 @@ static inline Vector3 Vec3_Normalize(Vector3 v) {
 	float magnitude = Vec3_Magnitude(v);
 	if (magnitude < EPSILON) {
 		DEBUG_LOG("Warning: Attempted to normalize a near-zero vector.\n");
-		return Vec3_New(0.0f, 0.0f, 0.0f);
+		return Vec3_Scale(v, 1.0f); 
 	}
 	return Vec3_Scale(v, 1.0f / magnitude);
 }
@@ -197,17 +197,18 @@ static inline Matrix4 Matrix4_Identity() {
  * The gravity vector determines the "up" direction.
  */
 static inline Matrix4 Matrix4_FromGravity(Vector3 gravNorm) {
-	// Ensure the gravity vector is normalized
 	gravNorm = Vec3_Normalize(gravNorm);
 
-	// Construct the transformation matrix
-	Matrix4 matrix = { {
-		{1.0f, 0.0f, 0.0f, 0.0f}, // X-axis remains unchanged
-		{0.0f, gravNorm.y, gravNorm.z, 0.0f}, // Y-axis aligned with gravity
-		{0.0f, -gravNorm.z, gravNorm.y, 0.0f}, // Z-axis perpendicular to gravity
-		{0.0f, 0.0f, 0.0f, 1.0f} // Homogeneous coordinate
-	} };
+	Vector3 upVector = Vec3_New(0.0f, 1.0f, 0.0f);
+	Vector3 zAxis = Vec3_Cross(upVector, gravNorm);
+	if (Vec3_IsZero(zAxis)) zAxis = Vec3_New(0.0f, 0.0f, 1.0f); 
 
+	Matrix4 matrix = { {
+		{1.0f, 0.0f, 0.0f, 0.0f},
+		{0.0f, gravNorm.y, gravNorm.z, 0.0f},
+		{zAxis.x, -gravNorm.z, gravNorm.y, 0.0f}, 
+		{0.0f, 0.0f, 0.0f, 1.0f}
+	} };
 	return matrix;
 }
 
@@ -360,6 +361,7 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	return normalizedVector;
 }
 
+
 // Gyro Space Transformation Functions
 
 /**
@@ -405,10 +407,12 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 		gravNorm = Vec3_Normalize(gravNorm);
 	}
 
-	// ---- Apply Sensitivity Scaling ----
-	float adjustedYaw = yaw_input * yawSensitivity;
-	float adjustedPitch = pitch_input * pitchSensitivity;
-	float adjustedRoll = roll_input * rollSensitivity;
+	// ---- Normalized Sensitivity Scaling ----
+	float normalizationFactor = 1.5f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
+
+	float adjustedYaw = yaw_input * yawSensitivity * normalizationFactor;
+	float adjustedPitch = pitch_input * pitchSensitivity * normalizationFactor;
+	float adjustedRoll = roll_input * rollSensitivity * normalizationFactor;
 
 	// ---- Compute Player View Matrix ----
 	Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
@@ -418,17 +422,8 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	float verticalPitch = adjustedPitch * gravNorm.y;
 	float depthRoll = adjustedRoll * gravNorm.x;
 
-	// ---- Horizontal Output: Yaw + Roll ----
-	float horizontalOutput = adjustedYaw + horizontalRoll;
-
-	// ---- Vertical Output: Adjusted Pitch ----
-	float verticalOutput = verticalPitch;
-
-	// ---- Z Output: Roll Depth Adjustment ----
-	float zOutput = depthRoll;
-
 	// ---- Apply Player View Matrix ----
-	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, zOutput);
+	Vector3 adjustedGyro = Vec3_New(adjustedYaw + horizontalRoll, verticalPitch, depthRoll);
 	Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
 
 	// ---- Return the transformed vector ----
@@ -439,47 +434,40 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
  * Transforms gyro inputs to World Space
  */
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
-	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
+    Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// ---- Validate Gravity Vector ----
-	if (Vec3_IsZero(gravNorm)) {
-		DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
-	else {
-		gravNorm = Vec3_Normalize(gravNorm);
-	}
+    // ---- Validate Gravity Vector ----
+    if (Vec3_IsZero(gravNorm)) {
+        DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+    } else {
+        gravNorm = Vec3_Normalize(gravNorm);
+    }
 
-	// ---- Apply Sensitivity Scaling ----
-	float adjustedYaw = yaw_input * yawSensitivity;
-	float adjustedPitch = pitch_input * pitchSensitivity;
-	float adjustedRoll = roll_input * rollSensitivity;
+    // ---- Normalized Sensitivity Scaling ----
+    float normalizationFactor = 1.5f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
 
-	// ---- Compute World View Matrix ----
-	Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
+    float adjustedYaw = yaw_input * yawSensitivity * normalizationFactor;
+    float adjustedPitch = pitch_input * pitchSensitivity * normalizationFactor;
+    float adjustedRoll = roll_input * rollSensitivity * normalizationFactor * (1.5f - fabsf(gravNorm.y));
 
-	// ---- Adjust Roll and Pitch Based on Gravity ----
-	float horizontalRoll = adjustedRoll * gravNorm.z;
-	float verticalRoll = adjustedRoll * gravNorm.x;
-	float verticalPitch = adjustedPitch * gravNorm.y;
-	float depthRoll = adjustedRoll * gravNorm.y; 
+    // ---- Compute World View Matrix ----
+    Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
 
-	// ---- Horizontal Output: Yaw + Roll ----
-	float horizontalOutput = adjustedYaw + horizontalRoll;
+    // ---- Adjust Roll and Pitch Based on Gravity ----
+    float horizontalRoll = adjustedRoll * gravNorm.z;
+    float verticalRoll = adjustedRoll * gravNorm.x;
+    float verticalPitch = adjustedPitch * gravNorm.y;
+    float depthRoll = adjustedRoll * gravNorm.y;
 
-	// ---- Vertical Output: Pitch + Roll ----
-	float verticalOutput = verticalPitch + verticalRoll;
+    // ---- Apply World View Matrix ----
+    Vector3 adjustedGyro = Vec3_New(adjustedYaw + horizontalRoll, verticalPitch + verticalRoll, depthRoll);
+    Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
-	// ---- Z Output: Roll Depth Adjustment ----
-	float zOutput = depthRoll;
-
-	// ---- Apply World View Matrix ----
-	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, zOutput);
-	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
-
-	// ---- Return the transformed vector ----
-	return worldGyro;
+    // ---- Return the transformed vector ----
+    return worldGyro;
 }
+
 
 #ifdef __cplusplus
 }
