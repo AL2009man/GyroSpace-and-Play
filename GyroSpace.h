@@ -468,7 +468,6 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     return worldGyro;
 }
 
-
 #ifdef __cplusplus
 }
 #endif
