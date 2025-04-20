@@ -408,19 +408,26 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	}
 
 	// ---- Normalized Sensitivity Scaling ----
-	float normalizationFactor = 1.5f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
+	float normalizationFactor = 1.0f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
 
-	float adjustedYaw = yaw_input * yawSensitivity * normalizationFactor;
+	// ---- Compute World-Aligned Yaw ----
+	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+
+	// ---- Combine Local Yaw & Roll for Magnitude ----
+	float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
+
+	// ---- Adjusted Yaw Using Sign of World Yaw ----
+	float adjustedYaw = (worldYaw >= 0 ? 1.0f : -1.0f) * fminf(fabsf(worldYaw) * 1.41, combinedYaw) * yawSensitivity * normalizationFactor;
+
 	float adjustedPitch = pitch_input * pitchSensitivity * normalizationFactor;
-	float adjustedRoll = roll_input * rollSensitivity * normalizationFactor;
 
 	// ---- Compute Player View Matrix ----
 	Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
 
 	// ---- Adjust Roll and Pitch Based on Gravity ----
-	float horizontalRoll = adjustedRoll * gravNorm.z;
-	float verticalPitch = adjustedPitch * gravNorm.y;
-	float depthRoll = adjustedRoll * gravNorm.x;
+	float horizontalRoll = roll_input * rollSensitivity * gravNorm.z;
+	float verticalPitch = pitch_input * pitchSensitivity * gravNorm.y;
+	float depthRoll = roll_input * rollSensitivity * gravNorm.x;
 
 	// ---- Apply Player View Matrix ----
 	Vector3 adjustedGyro = Vec3_New(adjustedYaw + horizontalRoll, verticalPitch, depthRoll);
@@ -445,23 +452,31 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     }
 
     // ---- Normalized Sensitivity Scaling ----
-    float normalizationFactor = 1.5f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
+    float normalizationFactor = 1.0f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
 
+    // ---- Compute Side Reduction Factor ----
+    float flatness = fabsf(gravNorm.y);
+    float upness = fabsf(gravNorm.z);
+    float sideReduction = clamp(fmaxf(flatness, upness) - 0.125f / 0.125f, 0.0f, 1.0f);
+
+    // ---- World Space Yaw Calculation ----
     float adjustedYaw = yaw_input * yawSensitivity * normalizationFactor;
-    float adjustedPitch = pitch_input * pitchSensitivity * normalizationFactor;
-    float adjustedRoll = roll_input * rollSensitivity * normalizationFactor * (1.5f - fabsf(gravNorm.y));
+
+    // ---- Project Pitch Axis onto Gravity Plane ----
+    Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravNorm.x));
+
+    if (!Vec3_IsZero(pitchVector)) {
+        pitchVector = Vec3_Normalize(pitchVector);
+    }
+
+    // ---- Adjusted Pitch Calculation ----
+    float adjustedPitch = sideReduction * Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector) * pitchSensitivity * normalizationFactor;
 
     // ---- Compute World View Matrix ----
     Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
 
-    // ---- Adjust Roll and Pitch Based on Gravity ----
-    float horizontalRoll = adjustedRoll * gravNorm.z;
-    float verticalRoll = adjustedRoll * gravNorm.x;
-    float verticalPitch = adjustedPitch * gravNorm.y;
-    float depthRoll = adjustedRoll * gravNorm.y;
-
     // ---- Apply World View Matrix ----
-    Vector3 adjustedGyro = Vec3_New(adjustedYaw + horizontalRoll, verticalPitch + verticalRoll, depthRoll);
+    Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, 0.0f);
     Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
     // ---- Return the transformed vector ----
