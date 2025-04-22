@@ -1,4 +1,4 @@
-﻿/*
+/*
  * =======================================================================
  *
  * Gyro Space to Play - A plug-and-play Gyro Space Transformer code
