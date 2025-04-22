@@ -330,37 +330,29 @@ extern "C" {
 // Dynamic Orientation Adjustment
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
 
-	// ---- Input Validation ----
+	// ---- Validate Inputs ----
 	if (isnan(yaw_input) || isnan(pitch_input) || isnan(roll_input)) {
 		DEBUG_LOG("Error: NaN detected in inputs. Returning zero vector.\n");
 		return Vec3_New(0.0f, 0.0f, 0.0f);
 	}
 
-	// Clamp inputs to prevent extreme values
+	// ---- Clamp Inputs to Prevent Extreme Values ----
 	yaw_input = clamp(yaw_input, -360.0f, 360.0f);
 	pitch_input = clamp(pitch_input, -360.0f, 360.0f);
 	roll_input = clamp(roll_input, -360.0f, 360.0f);
 
 	// ---- Debug Logs ----
-	DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs):\n");
-	DEBUG_LOG("  Roll Input: %f, Yaw Input: %f, Pitch Input: %f\n", roll_input, yaw_input, pitch_input);
+	DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs): Yaw = %f, Pitch = %f, Roll = %f\n", yaw_input, pitch_input, roll_input);
 
-	// ---- Combine Inputs ----
-	// Create individual vectors for yaw, pitch, and roll
-	Vector3 yawVector = Vec3_New(yaw_input, 0.0f, 0.0f);
-	Vector3 pitchVector = Vec3_New(0.0f, pitch_input, 0.0f);
-	Vector3 rollVector = Vec3_New(0.0f, 0.0f, roll_input);
+	// ---- Combine Inputs Into a Single Vector ----
+	Vector3 combinedVector = Vec3_New(yaw_input, pitch_input, roll_input);
 
-	// Combine the vectors
-	Vector3 combinedVector = Vec3_Add(Vec3_Add(yawVector, pitchVector), rollVector);
-
-	// ---- Normalize the Output ----
+	// ---- Normalize Output to Maintain Orientation Consistency ----
 	Vector3 normalizedVector = Vec3_Normalize(combinedVector);
 
-	// ---- Return the Combined Orientation ----
+	// ---- Return the Adjusted Orientation ----
 	return normalizedVector;
 }
-
 
 // Gyro Space Transformation Functions
 
