@@ -149,7 +149,7 @@ static inline Vector3 Vec3_Normalize(Vector3 v) {
 	float magnitude = Vec3_Magnitude(v);
 	if (magnitude < EPSILON) {
 		DEBUG_LOG("Warning: Attempted to normalize a near-zero vector.\n");
-		return Vec3_Scale(v, 1.0f); 
+		return Vec3_Scale(v, 1.0f);
 	}
 	return Vec3_Scale(v, 1.0f / magnitude);
 }
@@ -201,12 +201,12 @@ static inline Matrix4 Matrix4_FromGravity(Vector3 gravNorm) {
 
 	Vector3 upVector = Vec3_New(0.0f, 1.0f, 0.0f);
 	Vector3 zAxis = Vec3_Cross(upVector, gravNorm);
-	if (Vec3_IsZero(zAxis)) zAxis = Vec3_New(0.0f, 0.0f, 1.0f); 
+	if (Vec3_IsZero(zAxis)) zAxis = Vec3_New(0.0f, 0.0f, 1.0f);
 
 	Matrix4 matrix = { {
 		{1.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, gravNorm.y, gravNorm.z, 0.0f},
-		{zAxis.x, -gravNorm.z, gravNorm.y, 0.0f}, 
+		{zAxis.x, -gravNorm.z, gravNorm.y, 0.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f}
 	} };
 	return matrix;
@@ -338,33 +338,6 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	return normalizedVector;
 }
 
-// Sensitivity Normalization 
-
-/**
- * Ensures consistent motion scaling for gyro input across all spaces.
- *
- * - Local Space: Uses a fixed 0.7 scaling for natural feel.
- * - Player & World Space: Dynamically normalizes to prevent overshooting.
- *
- * Keeps sensitivity scaling balanced for 1:1 real-world rotation, ideal for Natural Sensitivity Scaling implementation 
- * or 1.0 in id Tech/Source Engine terms. (360/ 0.022 / 1.0 = ~16363)
- */
-
- /**
-  * Computes sensitivity normalization for Local Space.
-  */
-static inline Vector3 ComputeLocalSpaceNormalization(Vector3 inputVector) {
-	return Vec3_Scale(inputVector, 0.7f);
-}
-
-/**
- * Computes sensitivity normalization for Player & World Space.
- */
-static inline float ComputeSensitivityNormalization(Vector3 inputVector) {
-	float magnitudeSum = fabsf(inputVector.x) + fabsf(inputVector.y) + fabsf(inputVector.z) + EPSILON;
-	return 1.0f / magnitudeSum;
-}
-
 // Gyro Space Transformation Function
 
 /**
@@ -404,10 +377,10 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	float yawSensitivity, float pitchSensitivity,
 	float rollSensitivity, float couplingFactor) {
 
-	// Adjust roll to compensate for yaw-roll coupling 
+	// Adjust roll to compensate for yaw-roll coupling  
 	float adjustedRoll = (roll * rollSensitivity) - (yaw * couplingFactor);
 
-	// Apply individual sensitivity scaling
+	// Apply individual sensitivity scaling  
 	Vector3 localGyro = Vec3_New(
 		(yaw * yawSensitivity) - adjustedRoll,
 		(pitch * pitchSensitivity),
@@ -415,11 +388,12 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	);
 
 	// Apply Local Space Normalization
-	localGyro = ComputeLocalSpaceNormalization(localGyro);
+	localGyro = Vec3_Scale(localGyro, 0.7f);
 
-	// Return the transformed vector 
+	// Return the transformed vector  
 	return localGyro;
 }
+
 
 /**
  * Transforms gyro inputs to Player Space.
@@ -431,7 +405,7 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// Validate Gravity Vector 
+	// Validate Gravity Vector  
 	if (Vec3_IsZero(gravNorm)) {
 		DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
 		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
@@ -440,26 +414,24 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 		gravNorm = Vec3_Normalize(gravNorm);
 	}
 
-	// Compute World-Aligned Yaw 
+	// Compute World-Aligned Yaw  
 	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 	float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
 
-	// Adjusted Yaw Using Sign of World Yaw 
+	// Adjusted Yaw Using Sign of World Yaw  
 	float adjustedYaw = (worldYaw >= 0 ? 1.0f : -1.0f) * fminf(fabsf(worldYaw) * 1.41, combinedYaw) * yawSensitivity;
-
 	float adjustedPitch = pitch_input * pitchSensitivity;
 
-	// Compute Player View Matrix 
+	// Compute Player View Matrix  
 	Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
 
-	// Apply Unified Sensitivity Normalization 
-	Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, roll_input * rollSensitivity);
-	adjustedGyro = Vec3_Scale(adjustedGyro, ComputeSensitivityNormalization(gravNorm));
+	// Remove Sensitivity Normalization (Direct Scaling)  
+	Vector3 playerGyro = Vec3_New(adjustedYaw, adjustedPitch, roll_input * rollSensitivity);
 
-	// Apply Player View Matrix 
-	Vector3 playerGyro = MultiplyMatrixVector(playerViewMatrix, adjustedGyro);
+	// Apply Player View Matrix  
+	playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
 
-	// Return the transformed vector 
+	// Return the transformed vector  
 	return playerGyro;
 }
 
@@ -473,42 +445,37 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
-	// Validate Gravity Vector 
+	// Validate Gravity Vector  
 	if (Vec3_IsZero(gravNorm)) {
-		DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
 		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
 	}
 	else {
 		gravNorm = Vec3_Normalize(gravNorm);
 	}
 
-	// Compute Side Reduction Factor 
-	float flatness = fabsf(gravNorm.y);
-	float upness = fabsf(gravNorm.z);
-	float sideReduction = clamp(fmaxf(flatness, upness) - 0.125f / 0.125f, 0.0f, 1.0f);
-
-	// Compute World Space Yaw 
+	// Apply Sensitivity Scaling  
 	float adjustedYaw = yaw_input * yawSensitivity;
+	float adjustedPitch = pitch_input * pitchSensitivity;
+	float adjustedRoll = roll_input * rollSensitivity;
 
-	// Project Pitch Axis onto Gravity Plane 
-	Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravNorm.x));
-
-	if (!Vec3_IsZero(pitchVector)) {
-		pitchVector = Vec3_Normalize(pitchVector);
-	}
-
-	// Adjusted Pitch Calculation 
-	float adjustedPitch = sideReduction * Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector) * pitchSensitivity;
-
-	// Apply Unified Sensitivity Normalization 
-	Vector3 adjustedGyro = Vec3_New(adjustedYaw, adjustedPitch, roll_input * rollSensitivity);
-	adjustedGyro = Vec3_Scale(adjustedGyro, ComputeSensitivityNormalization(gravNorm));
-
-	// Compute World View Matrix 
+	// Compute World View Matrix  
 	Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
+
+	// Adjust Roll and Pitch Based on Gravity  
+	float horizontalRoll = adjustedRoll * gravNorm.z;
+	float verticalPitch = adjustedPitch * gravNorm.y;
+
+	// Horizontal Output: Yaw + Roll  
+	float horizontalOutput = adjustedYaw + horizontalRoll;
+
+	// Vertical Output: Adjusted Pitch  
+	float verticalOutput = verticalPitch;
+
+	// Apply World View Matrix
+	Vector3 adjustedGyro = Vec3_New(horizontalOutput, verticalOutput, adjustedRoll);
 	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
-	// Return the transformed vector 
+	// Return the transformed vector  
 	return worldGyro;
 }
 
