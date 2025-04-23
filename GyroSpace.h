@@ -374,8 +374,8 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	);
 
 	// ---- Normalize Sensitivity Scaling ----
-	// Ensure the sensitivity scaling does not overshoot at while 1:1 real-world device/controller rotation.
-	//  (1.00, or 1.0 in id Tech/Source Engine terms) ideal for Natural Sensitivitiy Scaling setup
+	// Ensure the sensitivity scaling does not overshoot, allowing for 1:1 real-world device/controller rotation. (If on 1.00, or 1.0 in id Tech/Source Engine terms) 
+	// Ideal for Natural Sensitivitiy Scale setup.
 	localGyro.x *= 0.7f;
 	localGyro.y *= 0.7f;
 	localGyro.z *= 0.7f;
@@ -400,6 +400,7 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 	}
 
 	// ---- Normalized Sensitivity Scaling ----
+	// Unlike Local Space: Sensitiviity scale is slightly reduced to prevent overshooting
 	float normalizationFactor = 1.0f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
 
 	// ---- Compute World-Aligned Yaw ----
@@ -444,6 +445,7 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     }
 
     // ---- Normalized Sensitivity Scaling ----
+	// Unlike Local Space: Sensitiviity scale is slightly reduced to prevent overshooting
     float normalizationFactor = 1.0f / (fabsf(gravNorm.x) + fabsf(gravNorm.y) + fabsf(gravNorm.z) + EPSILON);
 
     // ---- Compute Side Reduction Factor ----
