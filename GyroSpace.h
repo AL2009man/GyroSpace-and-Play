@@ -346,7 +346,8 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
  * - Local Space: Uses a fixed 0.7 scaling for natural feel.
  * - Player & World Space: Dynamically normalizes to prevent overshooting.
  *
- * Keeps sensitivity scaling balanced for 1:1 real-world rotation, ideal for Natural Sensitivity Scaling implementation (or 1.0 in id Tech/Source Engine terms).
+ * Keeps sensitivity scaling balanced for 1:1 real-world rotation, ideal for Natural Sensitivity Scaling implementation 
+ * or 1.0 in id Tech/Source Engine terms. (360/ 0.022 / 1.0 = ~16363)
  */
 
  /**
@@ -366,13 +367,18 @@ static inline float ComputeSensitivityNormalization(Vector3 inputVector) {
 
 // Gyro Space Transformation Function
 
-// C wrapper for gyro transformation functions to ensure compatibility with both C and C++.
-// This allows the functions to be called from C++ code without name mangling issues.
+/**
+ * These functions transform gyro inputs into different spaces (Local, Player, World)
+ * while handling sensitivity adjustments and gravity alignment.
+ */
+
+
+ // C wrapper for gyro transformation functions, ensuring compatibility with both C and C++.
+ // Prevents name mangling, allowing seamless function calls between languages.
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-	// Function declarations for gyro space transformations
 	Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 		float yawSensitivity, float pitchSensitivity,
 		float rollSensitivity, float couplingFactor);
@@ -388,8 +394,12 @@ extern "C" {
 #endif
 
 /**
- * Transforms gyro inputs to Local Space
+ * Transforms gyro inputs to Local Space.
+ *
+ * Converts raw gyro input into direct motion scaling.
+ * Preserves natural gyro responsiveness for intuitive movement.
  */
+
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 	float yawSensitivity, float pitchSensitivity,
 	float rollSensitivity, float couplingFactor) {
@@ -412,8 +422,12 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
 }
 
 /**
- * Transforms gyro inputs to Player Space
+ * Transforms gyro inputs to Player Space.
+ *
+ * Adjusts gyro input relative to the player's perspective.
+ * Ensures consistent aiming and movement, adapting to gravity alignment.
  */
+
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
@@ -450,8 +464,12 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
 }
 
 /**
- * Transforms gyro inputs to World Space
+ * Transforms gyro inputs to World Space.
+ *
+ * Aligns gyro input with the game world for precise aiming.
+ * Maintains spatial consistency, ensuring smooth transitions between perspectives.
  */
+
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
 	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
