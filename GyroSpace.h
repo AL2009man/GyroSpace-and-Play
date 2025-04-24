@@ -564,6 +564,30 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
         gravNorm = Vec3_Normalize(gravNorm);
     }
 
+#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
+	DEBUG_LOG("Using GamepadMotionHelper for Player Space Transformation.\n");
+
+	// Initialize GamepadMotion object
+	GamepadMotion* motion = CreateGamepadMotion();
+	if (!motion) {
+		DEBUG_LOG("Error: Failed to create GamepadMotion object.\n");
+		return Vec3_New(0.0f, 0.0f, 0.0f);
+	}
+
+	// Process motion using GamepadMotionHelper
+	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
+		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f);
+
+	// Retrieve Player Space gyro calculation
+	float x = 0.0f, y = 0.0f;
+	GetPlayerSpaceGyro(motion, &x, &y, yawSensitivity);
+
+	// Cleanup object
+	DeleteGamepadMotion(motion);
+
+	return Vec3_New(x, y, 0.0f);
+#else
+
     // Compute World-Aligned Yaw
     float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
@@ -603,6 +627,30 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     } else {
         gravNorm = Vec3_Normalize(gravNorm);
     }
+
+#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
+	DEBUG_LOG("Using GamepadMotionHelper for World Space Transformation.\n");
+
+	// Initialize GamepadMotion object
+	GamepadMotion* motion = CreateGamepadMotion();
+	if (!motion) {
+		DEBUG_LOG("Error: Failed to create GamepadMotion object.\n");
+		return Vec3_New(0.0f, 0.0f, 0.0f);
+	}
+
+	// Process motion using GamepadMotionHelper
+	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
+		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f);
+
+	// Retrieve World Space gyro calculation
+	float x = 0.0f, y = 0.0f;
+	GetWorldSpaceGyro(motion, &x, &y, rollSensitivity);
+
+	// Cleanup object
+	DeleteGamepadMotion(motion);
+
+	return Vec3_New(x, y, 0.0f);
+#else
 
     // Reduce hard spring effect by adjusting gravity alignment influence
     float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
