@@ -360,10 +360,22 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
 
 #ifdef __cplusplus
+#if __has_include("GamepadMotion.hpp")
 #include "GamepadMotion.hpp"
+#elif __has_include(<GamepadMotion.hpp>)
+#include <GamepadMotion.hpp>
+#else
+#pragma message("Warning: GamepadMotion.hpp not found. Falling back to built-in transformation.")
+#endif
 #pragma message("GamepadMotionHelpers (C++) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
 #else
-#include "GamepadMotion.h" // C wrapper
+#if __has_include("GamepadMotion.h")
+#include "GamepadMotion.h"
+#elif __has_include(<GamepadMotion.h>)
+#include <GamepadMotion.h>
+#else
+#pragma message("Warning: GamepadMotion.h not found. Falling back to built-in transformation.")
+#endif
 #pragma message("GamepadMotionHelpers (C) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
 #endif
 
@@ -552,33 +564,6 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
         gravNorm = Vec3_Normalize(gravNorm);
     }
 
-#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
-	DEBUG_LOG("Using GamepadMotionHelper for Player Space Transformation.\n");
-
-	// Initialize GamepadMotion object
-	GamepadMotion* motion = CreateGamepadMotion();
-
-	// Ensure gravNorm is valid
-	if (Vec3_IsZero(gravNorm)) {
-		DEBUG_LOG("Warning: gravNorm is zero. Defaulting to (0, 1, 0).\n");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
-	gravNorm = Vec3_Normalize(gravNorm);
-
-	// Process motion to align inputs with GamepadMotionHelper
-	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
-		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f); // Set deltaTime to 0.0f for alignment
-
-	// Use Player Space gyro calculation via wrapper
-	float x = 0.0f, y = 0.0f;
-	GetPlayerSpaceGyro(motion, &x, &y, yawSensitivity);
-
-	// Cleanup GamepadMotion object
-	DeleteGamepadMotion(motion);
-
-	return Vec3_New(x, y, 0.0f);
-#else
-
     // Compute World-Aligned Yaw
     float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
@@ -618,33 +603,6 @@ Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_inp
     } else {
         gravNorm = Vec3_Normalize(gravNorm);
     }
-
-#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
-	DEBUG_LOG("Using GamepadMotionHelper for World Space Transformation.\n");
-
-	// Initialize GamepadMotion object
-	GamepadMotion* motion = CreateGamepadMotion();
-
-	// Ensure gravNorm is valid
-	if (Vec3_IsZero(gravNorm)) {
-		DEBUG_LOG("Warning: gravNorm is zero. Defaulting to (0, 1, 0).\n");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
-	gravNorm = Vec3_Normalize(gravNorm);
-
-	// Process motion to align inputs with GamepadMotionHelper
-	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
-		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f); // Set deltaTime to 0.0f for alignment
-
-	// Use World Space gyro calculation via wrapper
-	float x = 0.0f, y = 0.0f;
-	GetWorldSpaceGyro(motion, &x, &y, rollSensitivity);
-
-	// Cleanup GamepadMotion object
-	DeleteGamepadMotion(motion);
-
-	return Vec3_New(x, y, 0.0f);
-#else
 
     // Reduce hard spring effect by adjusting gravity alignment influence
     float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
