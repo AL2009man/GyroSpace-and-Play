@@ -338,6 +338,149 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 	return normalizedVector;
 }
 
+// ---- GamepadMotionHelper ----
+
+/**
+ * GamepadMotionHelper compatibility
+ *
+ * This header provides optional integration with
+ * Player Gyro Space's Player Space and World Space
+ * transformer.
+ *
+ * https://github.com/JibbSmart/GamepadMotionHelpers
+ *
+ * IMPORTANT: if using GamepadMotion.cpp (Valkirie fork): You must create a corresponding
+ * GamepadMotion.h file. This header serves as a wrapper to provide C compatibility
+ * and access to GamepadMotion.cpp functionality for both C and C++ environments.
+ *
+ * https://github.com/Valkirie/GamepadMotionHelpers
+ *
+ */
+
+#ifdef ENABLE_GAMEPAD_MOTION_HELPERS
+
+#ifdef __cplusplus
+#include "GamepadMotion.hpp"
+#pragma message("GamepadMotionHelpers (C++) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
+#else
+#include "GamepadMotion.h" // C wrapper
+#pragma message("GamepadMotionHelpers (C) is enabled and GamepadMotion.cpp is being used for Player Space and World Space transformations.")
+#endif
+
+#ifdef __cplusplus
+
+ // ---- Independent Gravity Handling for GamepadMotionHelper ----
+
+static Vector3 helperGravNorm = { 0.0f, 1.0f, 0.0f }; // Separate gravity for GamepadMotionHelper
+
+static inline void SetHelperGravityVector(float x, float y, float z) {
+	if (x == 0.0f && y == 0.0f && z == 0.0f) { // Check for zero vector
+		DEBUG_LOG("Warning: Gravity vector is zero. Resetting to default.\n");
+		helperGravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+		return;
+	}
+
+	if (isnan(x) || isnan(y) || isnan(z)) {
+		DEBUG_LOG("Error: Gravity vector contains NaN values.\n");
+		return;
+	}
+
+	float magnitude = sqrtf(x * x + y * y + z * z);
+	if (magnitude < EPSILON) {
+		DEBUG_LOG("Warning: Gravity vector magnitude is near zero. Resetting to default.\n");
+		helperGravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+		return;
+	}
+
+	helperGravNorm = Vec3_Scale(Vec3_New(x, y, z), 1.0f / magnitude);
+}
+
+static inline void ResetHelperGravityVector(void) {
+	SetHelperGravityVector(0.0f, 1.0f, 0.0f); // Delegate to SetHelperGravityVector
+}
+
+static inline Vector3 GetHelperGravityVector(void) {
+	return helperGravNorm;
+}
+
+/**
+ * Uses GamepadMotionHelper for Player Space transformation.
+ */
+inline Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float yawRelaxFactor = 1.41f) {
+	DEBUG_LOG("GamepadMotionHelper: IntegratePlayerSpaceGyro invoked.\n");
+	float x = 0.0f, y = 0.0f;
+
+	GamepadMotionHelpers::CalculatePlayerSpaceGyro(
+		x, y,
+		motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
+		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z, // Independent gravity
+		yawRelaxFactor
+	);
+
+	return Vec3_New(x, y, 0.0f);
+}
+
+/**
+ * Uses GamepadMotionHelper for World Space transformation.
+ */
+inline Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& motionData, float sideReductionThreshold = 0.125f) {
+	DEBUG_LOG("GamepadMotionHelper: IntegrateWorldSpaceGyro invoked.\n");
+	float x = 0.0f, y = 0.0f;
+
+	GamepadMotionHelpers::CalculateWorldSpaceGyro(
+		x, y,
+		motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
+		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z, // Independent gravity
+		sideReductionThreshold
+	);
+
+	return Vec3_New(x, y, 0.0f);
+}
+
+#else // C Implementation using GamepadMotion.h
+
+ /**
+  * Uses GamepadMotionHelper for Player Space transformation (C wrapper).
+  */
+static inline Vector3 IntegratePlayerSpaceGyro(GamepadMotion* motion, float yawRelaxFactor) {
+	if (!motion) {
+		DEBUG_LOG("Error: Motion object is NULL in Player Space Gyro.\n");
+		return Vec3_New(0.0f, 0.0f, 0.0f);
+	}
+
+	DEBUG_LOG("GamepadMotionHelper: IntegratePlayerSpaceGyro invoked (C wrapper).\n");
+	float x = 0.0f, y = 0.0f;
+
+	ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
+		motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+	GetPlayerSpaceGyro(motion, &x, &y, yawRelaxFactor);
+
+	return Vec3_New(x, y, 0.0f);
+}
+
+/**
+ * Uses GamepadMotionHelper for World Space transformation (C wrapper).
+ */
+static inline Vector3 IntegrateWorldSpaceGyro(GamepadMotion* motion, float sideReductionThreshold) {
+	if (!motion) {
+		DEBUG_LOG("Error: Motion object is NULL in World Space Gyro.\n");
+		return Vec3_New(0.0f, 0.0f, 0.0f);
+	}
+
+	DEBUG_LOG("GamepadMotionHelper: IntegrateWorldSpaceGyro invoked (C wrapper).\n");
+	float x = 0.0f, y = 0.0f;
+
+	ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
+		motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+	GetWorldSpaceGyro(motion, &x, &y, sideReductionThreshold);
+
+	return Vec3_New(x, y, 0.0f);
+}
+
+#endif // C++ or C
+#endif // ENABLE_GAMEPAD_MOTION_HELPERS
+
+
 // Gyro Space Transformation Function
 
 /**
