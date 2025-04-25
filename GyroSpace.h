@@ -381,34 +381,22 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 
 #ifdef __cplusplus
 
- // ---- Independent Gravity Handling for GamepadMotionHelper ----
+ // Independent Gravity Handling for GamepadMotionHelper
 
-static Vector3 helperGravNorm = { 0.0f, 1.0f, 0.0f }; // Separate gravity for GamepadMotionHelper
+static Vector3 helperGravNorm = Vec3_New(HelperGravity.gravX, HelperGravity.gravY, HelperGravity.gravZ);
 
 static inline void SetHelperGravityVector(float x, float y, float z) {
-	if (x == 0.0f && y == 0.0f && z == 0.0f) { // Check for zero vector
+	if (Vec3_IsZero(Vec3_New(x, y, z))) {
 		DEBUG_LOG("Warning: Gravity vector is zero. Resetting to default.\n");
 		helperGravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
 		return;
 	}
+	helperGravNorm = Vec3_Normalize(Vec3_New(x, y, z));
 
-	if (isnan(x) || isnan(y) || isnan(z)) {
-		DEBUG_LOG("Error: Gravity vector contains NaN values.\n");
-		return;
-	}
-
-	float magnitude = sqrtf(x * x + y * y + z * z);
-	if (magnitude < EPSILON) {
-		DEBUG_LOG("Warning: Gravity vector magnitude is near zero. Resetting to default.\n");
-		helperGravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-		return;
-	}
-
-	helperGravNorm = Vec3_Scale(Vec3_New(x, y, z), 1.0f / magnitude);
-}
-
-static inline void ResetHelperGravityVector(void) {
-	SetHelperGravityVector(0.0f, 1.0f, 0.0f); // Delegate to SetHelperGravityVector
+	// Also update HelperGravity in C context to maintain synchronization
+	HelperGravity.gravX = helperGravNorm.x;
+	HelperGravity.gravY = helperGravNorm.y;
+	HelperGravity.gravZ = helperGravNorm.z;
 }
 
 static inline Vector3 GetHelperGravityVector(void) {
@@ -425,7 +413,7 @@ inline Vector3 IntegratePlayerSpaceGyro(const GamepadMotionHelpers::MotionData& 
 	GamepadMotionHelpers::CalculatePlayerSpaceGyro(
 		x, y,
 		motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
-		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z, // Independent gravity
+		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z,
 		yawRelaxFactor
 	);
 
@@ -442,14 +430,14 @@ inline Vector3 IntegrateWorldSpaceGyro(const GamepadMotionHelpers::MotionData& m
 	GamepadMotionHelpers::CalculateWorldSpaceGyro(
 		x, y,
 		motionData.Gyro.x, motionData.Gyro.y, motionData.Gyro.z,
-		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z, // Independent gravity
+		helperGravNorm.x, helperGravNorm.y, helperGravNorm.z,
 		sideReductionThreshold
 	);
 
 	return Vec3_New(x, y, 0.0f);
 }
 
-#else // C Implementation using GamepadMotion.h
+#else // C Implementation using GamepadMotion.h (C Wrapper)
 
  /**
   * Uses GamepadMotionHelper for Player Space transformation (C wrapper).
@@ -464,7 +452,7 @@ static inline Vector3 IntegratePlayerSpaceGyro(GamepadMotion* motion, float yawR
 	float x = 0.0f, y = 0.0f;
 
 	ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
-		motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+		HelperGravity.gravX, HelperGravity.gravY, HelperGravity.gravZ, motion->deltaTime);
 	GetPlayerSpaceGyro(motion, &x, &y, yawRelaxFactor);
 
 	return Vec3_New(x, y, 0.0f);
@@ -483,7 +471,7 @@ static inline Vector3 IntegrateWorldSpaceGyro(GamepadMotion* motion, float sideR
 	float x = 0.0f, y = 0.0f;
 
 	ProcessMotion(motion, motion->gyroX, motion->gyroY, motion->gyroZ,
-		motion->accelX, motion->accelY, motion->accelZ, motion->deltaTime);
+		HelperGravity.gravX, HelperGravity.gravY, HelperGravity.gravZ, motion->deltaTime);
 	GetWorldSpaceGyro(motion, &x, &y, sideReductionThreshold);
 
 	return Vec3_New(x, y, 0.0f);
@@ -554,60 +542,62 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll,
  */
 
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input,
-    Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
-
-    // Validate Gravity Vector
-    if (Vec3_IsZero(gravNorm)) {
-        DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
-        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-    } else {
-        gravNorm = Vec3_Normalize(gravNorm);
-    }
+	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
 	DEBUG_LOG("Using GamepadMotionHelper for Player Space Transformation.\n");
 
-	// Initialize GamepadMotion object
-	GamepadMotion* motion = CreateGamepadMotion();
-	if (!motion) {
-		DEBUG_LOG("Error: Failed to create GamepadMotion object.\n");
-		return Vec3_New(0.0f, 0.0f, 0.0f);
+	float x = 0.0f, y = 0.0f;
+
+	GamepadMotion motion;
+	motion.gyroX = yaw_input;
+	motion.gyroY = pitch_input;
+	motion.gyroZ = roll_input;
+	motion.gravX = HelperGravity.gravX;
+	motion.gravY = HelperGravity.gravY;
+	motion.gravZ = HelperGravity.gravZ;
+
+	CalculatePlayerSpaceGyro(&motion, &x, &y, yawSensitivity);
+
+	// Fix player space inversion
+	y = -y;
+
+	// Convert HelperGravity to Vector3 before passing it
+	Vector3 helperGravityVec = Vec3_New(HelperGravity.gravX, HelperGravity.gravY, HelperGravity.gravZ);
+	Matrix4 playerViewMatrix = Matrix4_FromGravity(helperGravityVec);
+	Vector3 playerGyro = Vec3_New(x, y, roll_input * rollSensitivity);
+	playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
+
+	return playerGyro;
+#else
+	// Validate Gravity Vector 
+	if (Vec3_IsZero(gravNorm)) {
+		DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).\n");
+		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	}
+	else {
+		gravNorm = Vec3_Normalize(gravNorm);
 	}
 
-	// Process motion using GamepadMotionHelper
-	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
-		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f);
+	// Compute World-Aligned Yaw 
+	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+	float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
+	float yawDirection = (worldYaw >= 0) ? 1.0f : -1.0f;
+	float yawRelaxFactor = 1.41;
+	float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * yawRelaxFactor, combinedYaw) * yawSensitivity;
 
-	// Retrieve Player Space gyro calculation
-	float x = 0.0f, y = 0.0f;
-	GetPlayerSpaceGyro(motion, &x, &y, yawSensitivity);
+	// Compute Local Pitch 
+	float adjustedPitch = pitch_input * pitchSensitivity;
 
-	// Cleanup object
-	DeleteGamepadMotion(motion);
+	// Compute Player View Matrix 
+	Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
 
-	return Vec3_New(x, y, 0.0f);
-#else
+	// Apply Player View Matrix 
+	Vector3 playerGyro = Vec3_New(adjustedYaw, adjustedPitch, roll_input * rollSensitivity);
+	playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
 
-    // Compute World-Aligned Yaw
-    float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
-
-    // Compute Local Combined Yaw
-    float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f)); 
-    float yawDirection = (worldYaw >= 0) ? 1.0f : -1.0f;
-    float yawRelaxFactor = 1.41;  
-    float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * yawRelaxFactor, combinedYaw) * yawSensitivity;
-
-    // Compute Local Pitch
-    float adjustedPitch = pitch_input * pitchSensitivity;
-
-    // Compute Player View Matrix
-    Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
-
-    // Apply Player View Matrix
-    Vector3 playerGyro = Vec3_New(adjustedYaw, adjustedPitch, roll_input * rollSensitivity);
-    playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
-
-    return playerGyro;
+	// Return the transformed vector  
+	return playerGyro;
 #endif
 }
 
@@ -619,66 +609,68 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
  */
 
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input,
-    Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
-
-    // Validate Gravity Vector
-    if (Vec3_IsZero(gravNorm)) {
-        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-    } else {
-        gravNorm = Vec3_Normalize(gravNorm);
-    }
+	Vector3 gravNorm, float yawSensitivity, float pitchSensitivity, float rollSensitivity) {
 
 #ifdef ENABLE_GAMEPAD_MOTION_HELPERS
 	DEBUG_LOG("Using GamepadMotionHelper for World Space Transformation.\n");
 
-	// Initialize GamepadMotion object
-	GamepadMotion* motion = CreateGamepadMotion();
-	if (!motion) {
-		DEBUG_LOG("Error: Failed to create GamepadMotion object.\n");
-		return Vec3_New(0.0f, 0.0f, 0.0f);
+	float x = 0.0f, y = 0.0f;
+
+	GamepadMotion motion;
+	motion.gyroX = yaw_input;
+	motion.gyroY = pitch_input;
+	motion.gyroZ = roll_input;
+	motion.gravX = HelperGravity.gravX;
+	motion.gravY = HelperGravity.gravY;
+	motion.gravZ = HelperGravity.gravZ;
+
+	CalculateWorldSpaceGyro(&motion, &x, &y, yawSensitivity);
+
+	// Convert gravity to a properly aligned vector
+	Vector3 gravNormVec = Vec3_New(HelperGravity.gravX, HelperGravity.gravY, HelperGravity.gravZ);
+	Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNormVec);
+
+	// Apply Matrix Multiplication
+	Vector3 worldGyro = Vec3_New(x, -y, roll_input * rollSensitivity);
+	worldGyro = MultiplyMatrixVector(worldViewMatrix, worldGyro);
+
+	return worldGyro;
+#else
+	// Validate Gravity Vector  
+	if (Vec3_IsZero(gravNorm)) {
+		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+	}
+	else {
+		gravNorm = Vec3_Normalize(gravNorm);
 	}
 
-	// Process motion using GamepadMotionHelper
-	ProcessMotion(motion, yaw_input, pitch_input, roll_input,
-		gravNorm.x, gravNorm.y, gravNorm.z, 0.0f);
+	// Reduce hard spring effect by adjusting gravity alignment influence
+	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
-	// Retrieve World Space gyro calculation
-	float x = 0.0f, y = 0.0f;
-	GetWorldSpaceGyro(motion, &x, &y, rollSensitivity);
+	// Compute Side Reduction Factor with less aggressive clamping  
+	float flatness = fabsf(gravNorm.y);
+	float upness = fabsf(gravNorm.z);
+	float sideReduction = clamp((fmaxf(flatness, upness) - 0.125f) / 0.25f, 0.0f, 1.0f);
 
-	// Cleanup object
-	DeleteGamepadMotion(motion);
+	// Project Pitch Axis onto Gravity Plane with stabilized calculations  
+	float gravDotPitchAxis = gravNorm.x;
+	Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitchAxis));
 
-	return Vec3_New(x, y, 0.0f);
-#else
+	if (!Vec3_IsZero(pitchVector)) {
+		pitchVector = Vec3_Normalize(pitchVector);
+	}
 
-    // Reduce hard spring effect by adjusting gravity alignment influence
-    float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+	float adjustedPitch = sideReduction * Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector) * pitchSensitivity;
 
-    // Compute Side Reduction Factor with less aggressive clamping  
-    float flatness = fabsf(gravNorm.y);
-    float upness = fabsf(gravNorm.z);
-    float sideReduction = clamp((fmaxf(flatness, upness) - 0.125f) / 0.25f, 0.0f, 1.0f);
+	// Compute World View Matrix  
+	Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
 
-    // Project Pitch Axis onto Gravity Plane with stabilized calculations  
-    float gravDotPitchAxis = gravNorm.x;
-    Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitchAxis));
+	// Apply refined world space transformation  
+	Vector3 adjustedGyro = Vec3_New(worldYaw * yawSensitivity, adjustedPitch, roll_input * rollSensitivity);
+	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
-    if (!Vec3_IsZero(pitchVector)) {
-        pitchVector = Vec3_Normalize(pitchVector);
-    }
-
-    // Adjust Pitch with refined damping
-    float adjustedPitch = sideReduction * Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector) * pitchSensitivity;
-
-    // Compute World View Matrix
-    Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
-
-    // Apply refined world space transformation
-    Vector3 adjustedGyro = Vec3_New(worldYaw * yawSensitivity, adjustedPitch, roll_input * rollSensitivity);
-    Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
-
-    return worldGyro;
+	// Return the transformed vector  
+	return worldGyro;
 #endif
 }
 
