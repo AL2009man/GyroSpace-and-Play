@@ -235,37 +235,40 @@ extern "C" {
     }
 
 
-    void CalculateWorldSpaceGyro(GamepadMotion* motion, float* x, float* y, float sideReductionThreshold) {
-        if (motion && x && y) {
-            const float gravX = motion->gravX;
-            const float gravY = motion->gravY;
-            const float gravZ = motion->gravZ;
-            const float gyroX = motion->gyroX;
-            const float gyroY = motion->gyroY;
-            const float gyroZ = motion->gyroZ;
+void CalculateWorldSpaceGyro(GamepadMotion* motion, float* x, float* y, float sideReductionThreshold) {
+    if (motion && x && y) {
+        const float gravX = motion->gravX;
+        const float gravY = motion->gravY;
+        const float gravZ = motion->gravZ;
+        const float gyroX = motion->gyroX;
+        const float gyroY = motion->gyroY;
+        const float gyroZ = motion->gyroZ;
 
-            const float worldYaw = -gravX * gyroX - gravY * gyroY - gravZ * gyroZ;
+        // Proper yaw influence for left/right tilt
+        const float worldYaw = -(gravY * gyroY + gravZ * gyroZ);
+        const float yawInfluence = fmaxf(fabsf(gravX), fabsf(gravZ));
 
-            const float gravDotPitchAxis = gravX;
-            const float pitchAxisX = 1.f - gravX * gravDotPitchAxis;
-            const float pitchAxisY = -gravY * gravDotPitchAxis;
-            const float pitchAxisZ = -gravZ * gravDotPitchAxis;
-            const float pitchAxisLength = sqrtf(pitchAxisX * pitchAxisX + pitchAxisY * pitchAxisY + pitchAxisZ * pitchAxisZ);
+        *x = yawInfluence * gyroX; // Ensures yaw fully contributes to movement
 
-            if (pitchAxisLength > 0.f) {
-                const float flatness = fabsf(gravY);
-                const float upness = fabsf(gravZ);
-                const float sideReduction = sideReductionThreshold <= 0.f ? 1.f : fminf((fmaxf(flatness, upness) - sideReductionThreshold) / sideReductionThreshold, 1.f);
+        // Adjust gravity influence to ensure left/right tilt isn't suppressed
+        const float gravDotPitchAxis = gravX;
+        const float pitchAxisX = 1.f - gravX * gravDotPitchAxis;
+        const float pitchAxisY = -gravY * gravDotPitchAxis;
+        const float pitchAxisZ = -gravZ * gravDotPitchAxis;
+        const float pitchAxisLength = sqrtf(pitchAxisX * pitchAxisX + pitchAxisY * pitchAxisY + pitchAxisZ * pitchAxisZ);
 
-                *x = sideReduction * (pitchAxisX * gyroX + pitchAxisY * gyroY + pitchAxisZ * gyroZ) / pitchAxisLength;
-            }
-            else {
-                *x = 0.f;
-            }
+        if (pitchAxisLength > 0.f) {
+            const float flatness = fabsf(gravY);
+            const float upness = fabsf(gravZ);
+            const float sideReduction = sideReductionThreshold <= 0.f ? 1.f : fminf((fmaxf(flatness, upness) - sideReductionThreshold) / sideReductionThreshold, 1.f);
 
-            *y = worldYaw;
+            *x = sideReduction * yawInfluence * (pitchAxisX * gyroX + pitchAxisY * gyroY + pitchAxisZ * gyroZ) / pitchAxisLength;
         }
+
+        *y = worldYaw;
     }
+}
+
 
 #ifdef __cplusplus
 }
