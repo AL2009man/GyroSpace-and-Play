@@ -28,13 +28,13 @@ extern "C" {
 #include "stdint.h"
 #endif
 
- // Ensure `s32` and `u32` are correctly defined
+ // Define `s32` and `u32` only if not already present
 #ifndef s32
-#define s32 int32_t
+typedef int32_t s32;
 #endif
 
 #ifndef u32
-#define u32 uint32_t
+typedef uint32_t u32;
 #endif
 
 // Apply correct boolean type definitions
