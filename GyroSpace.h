@@ -226,7 +226,7 @@ static inline Vector3 MultiplyMatrixVector(Matrix4 matrix, Vector3 vector) {
 	);
 }
 
-// Global Gravity Vector Management 
+// Global Gravity Vector Management
 
 /**
  * Global gravity vector (default set to (0, 1, 0)).
@@ -236,72 +236,73 @@ static Vector3 gravNorm = { 0.0f, 1.0f, 0.0f };
 /**
  * Updates the global gravity vector using sensor fusion.
  */
-static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, float fusionFactor) {
-	// Validate fusionFactor
-	if (fusionFactor < 0.0f || fusionFactor > 1.0f) {
-		DEBUG_LOG("Error: Invalid fusionFactor (%f). Must be between 0.0 and 1.0.\n", fusionFactor);
-		return;
-	}
+static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, float fusionFactor, float deltaTime) {
+    // Validate fusionFactor
+    if (fusionFactor < 0.0f || fusionFactor > 1.0f) {
+        DEBUG_LOG("Error: Invalid fusionFactor (%f). Must be between 0.0 and 1.0.\n", fusionFactor);
+        return;
+    }
 
-	// Validate inputs for NaN values
-	if (isnan(accel.x) || isnan(accel.y) || isnan(accel.z) ||
-		isnan(gyroRotation.x) || isnan(gyroRotation.y) || isnan(gyroRotation.z)) {
-		DEBUG_LOG("Error: NaN values detected in sensor inputs. Skipping update.\n");
-		return;
-	}
+    // Validate inputs for NaN values
+    if (isnan(accel.x) || isnan(accel.y) || isnan(accel.z) ||
+        isnan(gyroRotation.x) || isnan(gyroRotation.y) || isnan(gyroRotation.z)) {
+        DEBUG_LOG("Error: NaN values detected in sensor inputs. Skipping update.\n");
+        return;
+    }
 
-	// Normalize the accelerometer input to ensure valid gravity direction
-	Vector3 accelNorm = Vec3_Normalize(accel);
+    // Normalize accelerometer input
+    Vector3 accelNorm = Vec3_Normalize(accel);
 
-	// Rotate existing gravity vector using gyroscope
-	Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Cross(gyroRotation, gravNorm));
+    // Compute rotational adjustment using gyroscope over time
+    Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
+    Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
 
-	// Blend the rotated gravity vector with accelerometer data using linear interpolation
-	gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, fusionFactor);
+    // Apply adaptive complementary filter to adjust gravity correction
+    float gravityCorrectionFactor = fusionFactor * (1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)));
+    gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
 
-	// Normalize the updated gravity vector
-	if (!Vec3_IsZero(gravNorm)) {
-		gravNorm = Vec3_Normalize(gravNorm);
-	}
-	else {
-		DEBUG_LOG("Warning: Gravity vector became near-zero. Resetting to default (0,1,0).\n");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
+    // Normalize final gravity vector
+    if (!Vec3_IsZero(gravNorm)) {
+        gravNorm = Vec3_Normalize(gravNorm);
+    } else {
+        DEBUG_LOG("Warning: Gravity vector became near-zero. Resetting to default (0,1,0).\n");
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+    }
 
-	DEBUG_LOG("UpdateGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
+    DEBUG_LOG("Updated Gravity Vector - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
 }
 
 /**
  * Sets the gravity vector manually and ensures normalization.
  */
 static inline void SetGravityVector(float x, float y, float z) {
-	// Validate inputs
-	if (isnan(x) || isnan(y) || isnan(z)) {
-		DEBUG_LOG("Error: Gravity vector contains NaN values. Resetting to default (0,1,0).\n");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-		return;
-	}
+    // Validate inputs
+    if (isnan(x) || isnan(y) || isnan(z)) {
+        DEBUG_LOG("Error: Gravity vector contains NaN values. Resetting to default (0,1,0).\n");
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+        return;
+    }
 
-	Vector3 newGravNorm = Vec3_New(x, y, z);
+    Vector3 newGravNorm = Vec3_New(x, y, z);
 
-	// Ensure gravity vector isn't near-zero
-	if (Vec3_Magnitude(newGravNorm) < EPSILON) {
-		DEBUG_LOG("Warning: Gravity vector magnitude too small. Retaining previous value.\n");
-		return;
-	}
+    // Ensure gravity vector isn't near-zero
+    if (Vec3_Magnitude(newGravNorm) < EPSILON) {
+        DEBUG_LOG("Warning: Gravity vector magnitude too small. Retaining previous value.\n");
+        return;
+    }
 
-	// Normalize and update the gravity vector
-	gravNorm = Vec3_Normalize(newGravNorm);
+    // Normalize and update the gravity vector
+    gravNorm = Vec3_Normalize(newGravNorm);
 
-	DEBUG_LOG("SetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
+    DEBUG_LOG("SetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
 }
 
 /**
  * Retrieves the current normalized gravity vector.
  */
 static inline Vector3 GetGravityVector(void) {
-	DEBUG_LOG("GetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
-	return gravNorm;
+    DEBUG_LOG("GetGravityVector called - gravNorm = (%f, %f, %f)\n", gravNorm.x, gravNorm.y, gravNorm.z);
+    return gravNorm;
 }
 
 
@@ -311,7 +312,6 @@ static inline Vector3 GetGravityVector(void) {
  * Adapts gyro input for switching between normal controller grip and handheld-style grip.
  * This function takes yaw, pitch, and roll inputs and adjusts them to maintain consistent orientation.
  */
-
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
 
 	// Validate Inputs 
@@ -347,7 +347,6 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
 
 
  // C wrapper for gyro transformation functions, ensuring compatibility with both C and C++.
- // Prevents name mangling, allowing seamless function calls between languages.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -369,9 +368,9 @@ extern "C" {
  * Preserves natural gyro responsiveness for intuitive movement.
  */
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float couplingFactor) {
- 
-	// Adjust roll to compensate for yaw-roll coupling  
-    float rollCompensationFactor = 0.85f; //  reduces roll influence
+
+    // Adjust roll to compensate for yaw-roll coupling  
+    float rollCompensationFactor = 0.85f; // Reduces roll influence
     float adjustedRoll = (roll * rollCompensationFactor) - (yaw * couplingFactor);
 
     // Ensure balanced proportional motion
@@ -388,6 +387,7 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float coupling
  * Ensures consistent aiming and movement, adapting to gravity alignment.
  */
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
+
     // Validate gravity vector  
     if (Vec3_IsZero(gravNorm)) {
         DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).");
@@ -399,10 +399,13 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
     // Compute World-Aligned Yaw  
     float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
-    // Compute Local Combined Yaw  
-    float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
+    // Compute Local Combined Yaw Magnitude  
+    float combinedYawMagnitude = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
+
+    // Adjust yaw direction using relaxation factor  
+    float yawRelaxFactor = 1.41f;
     float yawDirection = (worldYaw >= 0) ? 1.0f : -1.0f;
-    float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * 1.41, combinedYaw);
+    float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * yawRelaxFactor, combinedYawMagnitude);
 
     // Compute Player View Matrix  
     Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
@@ -422,6 +425,7 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
  * Maintains spatial consistency, ensuring smooth transitions between perspectives.
  */
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
+
     // Validate gravity vector  
     if (Vec3_IsZero(gravNorm)) {
         gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
