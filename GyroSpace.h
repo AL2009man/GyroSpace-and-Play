@@ -28,13 +28,13 @@ extern "C" {
 #include "stdint.h"
 #endif
 
- // Define `s32` and `u32` only if not already present
+ // Ensure `s32` and `u32` are correctly defined
 #ifndef s32
-typedef int32_t s32;
+#define s32 int32_t
 #endif
 
 #ifndef u32
-typedef uint32_t u32;
+#define u32 uint32_t
 #endif
 
 // Apply correct boolean type definitions
@@ -365,96 +365,90 @@ extern "C" {
 /**
  * Transforms gyro inputs to Local Space.
  *
- * Converts raw gyro input into direct motion scaling.
- * Preserves natural gyro responsiveness for intuitive movement.
+ * Converts raw gyro input into direct motion while preserving natural responsiveness.
  */
-
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float couplingFactor) {
+ 
 	// Adjust roll to compensate for yaw-roll coupling  
-	float adjustedRoll = roll - (yaw * couplingFactor);
+    float rollCompensationFactor = 0.85f; //  reduces roll influence
+    float adjustedRoll = (roll * rollCompensationFactor) - (yaw * couplingFactor);
 
-	// Ensure balanced proportional motion
-	Vector3 localGyro = Vec3_New(yaw - adjustedRoll, pitch, roll);
+    // Ensure balanced proportional motion
+    Vector3 localGyro = Vec3_New(yaw - adjustedRoll, pitch, adjustedRoll);
 
-	// Return the transformed vector
-	return localGyro;
+    // Return the transformed vector
+    return localGyro;
 }
 
 /**
  * Transforms gyro inputs to Player Space.
  *
  * Adjusts gyro input relative to the player's perspective.
- * Ensures consistent aiming and movement, adapting to gravity alignment.
  */
-
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
-	// Validate gravity vector  
-	if (Vec3_IsZero(gravNorm)) {
-		DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).");
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
-	else {
-		gravNorm = Vec3_Normalize(gravNorm);
-	}
+    // Validate gravity vector  
+    if (Vec3_IsZero(gravNorm)) {
+        DEBUG_LOG("Warning: Gravity vector is near-zero. Resetting to default (0,1,0).");
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+    } else {
+        gravNorm = Vec3_Normalize(gravNorm);
+    }
 
-	// Compute World-Aligned Yaw  
-	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+    // Compute World-Aligned Yaw  
+    float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
-	// Compute Local Combined Yaw  
-	float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
-	float yawDirection = (worldYaw >= 0) ? 1.0f : -1.0f;
-	float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * 1.41, combinedYaw);
+    // Compute Local Combined Yaw  
+    float combinedYaw = Vec3_Magnitude(Vec3_New(yaw_input, roll_input, 0.0f));
+    float yawDirection = (worldYaw >= 0) ? 1.0f : -1.0f;
+    float adjustedYaw = yawDirection * fminf(fabsf(worldYaw) * 1.41, combinedYaw);
 
-	// Compute Player View Matrix  
-	Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
+    // Compute Player View Matrix  
+    Matrix4 playerViewMatrix = Matrix4_FromGravity(gravNorm);
 
-	// Apply Player View Matrix  
-	Vector3 playerGyro = Vec3_New(adjustedYaw, pitch_input, roll_input);
-	playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
+    // Apply Player View Matrix  
+    Vector3 playerGyro = Vec3_New(adjustedYaw, pitch_input, roll_input);
+    playerGyro = MultiplyMatrixVector(playerViewMatrix, playerGyro);
 
-	// Return the transformed vector  
-	return playerGyro;
+    // Return the transformed vector  
+    return playerGyro;
 }
 
 /**
  * Transforms gyro inputs to World Space.
  *
  * Aligns gyro input with the game world for precise aiming.
- * Maintains spatial consistency, ensuring smooth transitions between perspectives.
  */
-
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
-	// Validate gravity vector  
-	if (Vec3_IsZero(gravNorm)) {
-		gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
-	}
-	else {
-		gravNorm = Vec3_Normalize(gravNorm);
-	}
+    // Validate gravity vector  
+    if (Vec3_IsZero(gravNorm)) {
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+    } else {
+        gravNorm = Vec3_Normalize(gravNorm);
+    }
 
-	// Compute yaw influence  
-	float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
+    // Compute yaw influence  
+    float worldYaw = yaw_input * gravNorm.y + roll_input * gravNorm.z;
 
-	// Compute pitch axis projection onto gravity plane  
-	float gravDotPitchAxis = gravNorm.x;
-	Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitchAxis));
+    // Compute pitch axis projection onto gravity plane  
+    float gravDotPitchAxis = gravNorm.x;
+    Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravNorm, gravDotPitchAxis));
 
-	if (!Vec3_IsZero(pitchVector)) {
-		pitchVector = Vec3_Normalize(pitchVector);
-	}
+    if (!Vec3_IsZero(pitchVector)) {
+        pitchVector = Vec3_Normalize(pitchVector);
+    }
 
-	// Adjust pitch using gravity influence  
-	float adjustedPitch = Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector);
+    // Adjust pitch using gravity influence  
+    float adjustedPitch = Vec3_Dot(Vec3_New(pitch_input, 0.0f, roll_input), pitchVector);
 
-	// Compute World View Matrix  
-	Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
+    // Compute World View Matrix  
+    Matrix4 worldViewMatrix = Matrix4_FromGravity(gravNorm);
 
-	// Apply world space transformation  
-	Vector3 adjustedGyro = Vec3_New(worldYaw, adjustedPitch, roll_input);
-	Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
+    // Apply world space transformation  
+    Vector3 adjustedGyro = Vec3_New(worldYaw, adjustedPitch, roll_input);
+    Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, adjustedGyro);
 
-	// Return the transformed vector  
-	return worldGyro;
+    // Return the transformed vector  
+    return worldGyro;
 }
 
 #ifdef __cplusplus
