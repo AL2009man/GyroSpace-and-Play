@@ -1,11 +1,6 @@
-#include <iostream>
-#include "header/GyroSpace/GyroSpace.h"
-
 class GyroProcessor {
 public:
-    GyroProcessor(float yawSens, float pitchSens, float rollSens)
-        : yawSensitivity(yawSens), pitchSensitivity(pitchSens), rollSensitivity(rollSens) {
-    }
+    GyroProcessor() {}
 
     Vector3 processGyro(Vector3 rawGyro, int mode) {
         Vector3 gravityVector = GetGravityVector(); // Retrieve gravity vector internally
@@ -13,31 +8,29 @@ public:
         switch (mode) {
         case 1: // Local Space
             return TransformToLocalSpace(rawGyro.x, rawGyro.y, rawGyro.z,
-                yawSensitivity, pitchSensitivity, rollSensitivity, 0.075f);
+                0.0f // Coupling factor for local space
+            );
         case 2: // Player Space
             return TransformToPlayerSpace(rawGyro.x, rawGyro.y, rawGyro.z,
-                gravityVector, yawSensitivity, pitchSensitivity, rollSensitivity);
+                gravityVector
+            );
         case 3: // World Space
             return TransformToWorldSpace(rawGyro.x, rawGyro.y, rawGyro.z,
-                gravityVector, yawSensitivity, pitchSensitivity, rollSensitivity);
+                gravityVector
+            );
         default:
             std::cerr << "Error: Invalid mode selected.\n";
             return Vec3_New(0.0f, 0.0f, 0.0f); // Consistent vector initialization
         }
     }
-
-private:
-    float yawSensitivity;
-    float pitchSensitivity;
-    float rollSensitivity;
 };
 
 int main() {
     // Simulated raw gyro input values (replace with real sensor data)
     Vector3 rawGyro = Vec3_New(10.0f, 5.0f, 3.0f);
 
-    // Create processor with adjustable sensitivity
-    GyroProcessor processor(1.0f, 1.0f, 1.0f);
+    // Create processor without sensitivity parameters
+    GyroProcessor processor;
 
     // Select gyro mode (1 = Local, 2 = Player, 3 = World)
     int mode = 2;
