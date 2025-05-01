@@ -365,7 +365,8 @@ extern "C" {
 /**
  * Transforms gyro inputs to Local Space.
  *
- * Converts raw gyro input into direct motion while preserving natural responsiveness.
+ * Converts raw gyro input into direct motion scaling.
+ * Preserves natural gyro responsiveness for intuitive movement.
  */
 Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float couplingFactor) {
  
@@ -384,6 +385,7 @@ Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float coupling
  * Transforms gyro inputs to Player Space.
  *
  * Adjusts gyro input relative to the player's perspective.
+ * Ensures consistent aiming and movement, adapting to gravity alignment.
  */
 Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
     // Validate gravity vector  
@@ -417,6 +419,7 @@ Vector3 TransformToPlayerSpace(float yaw_input, float pitch_input, float roll_in
  * Transforms gyro inputs to World Space.
  *
  * Aligns gyro input with the game world for precise aiming.
+ * Maintains spatial consistency, ensuring smooth transitions between perspectives.
  */
 Vector3 TransformToWorldSpace(float yaw_input, float pitch_input, float roll_input, Vector3 gravNorm) {
     // Validate gravity vector  
