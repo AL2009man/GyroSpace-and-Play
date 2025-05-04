@@ -257,9 +257,20 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
     Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
     Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
 
-    // Apply adaptive complementary filter to adjust gravity correction
-    float gravityCorrectionFactor = fusionFactor * (1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)));
-    gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
+    // Adaptive fusion scaling based on motion intensity
+    float motionIntensity = Vec3_Magnitude(gyroRotation);
+    float adaptiveFusionFactor = clamp(fusionFactor * (1.0f + motionIntensity * 0.1f), 0.0f, 1.0f);
+
+    // Smoother gravity correction factor to prevent sudden jumps
+    float gravityCorrectionFactor = adaptiveFusionFactor * powf(1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)), 2.0f);
+
+    // Apply interpolation between rotated gravity and accelerometer input
+    Vector3 newGravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
+
+    // Apply rolling average filtering to smooth transitions
+    static Vector3 prevGravity = {0.0f, 1.0f, 0.0f};
+    gravNorm = Vec3_Lerp(prevGravity, newGravNorm, 0.7f);
+    prevGravity = gravNorm;
 
     // Normalize final gravity vector
     if (!Vec3_IsZero(gravNorm)) {
@@ -314,29 +325,38 @@ static inline Vector3 GetGravityVector(void) {
  */
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
 
-	// Validate Inputs 
-	if (isnan(yaw_input) || isnan(pitch_input) || isnan(roll_input)) {
-		DEBUG_LOG("Error: NaN detected in inputs. Returning zero vector.\n");
-		return Vec3_New(0.0f, 0.0f, 0.0f);
-	}
+    // Validate Inputs 
+    if (isnan(yaw_input) || isnan(pitch_input) || isnan(roll_input)) {
+        DEBUG_LOG("Error: NaN detected in inputs. Returning zero vector.\n");
+        return Vec3_New(0.0f, 0.0f, 0.0f);
+    }
 
-	// Clamp Inputs to Prevent Extreme Values 
-	yaw_input = clamp(yaw_input, -360.0f, 360.0f);
-	pitch_input = clamp(pitch_input, -360.0f, 360.0f);
-	roll_input = clamp(roll_input, -360.0f, 360.0f);
+    // Clamp Inputs to Prevent Extreme Values 
+    yaw_input = clamp(yaw_input, -360.0f, 360.0f);
+    pitch_input = clamp(pitch_input, -360.0f, 360.0f);
+    roll_input = clamp(roll_input, -360.0f, 360.0f);
 
-	// Debug Logs 
-	DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs): Yaw = %f, Pitch = %f, Roll = %f\n", yaw_input, pitch_input, roll_input);
+    // Combine Inputs Into a Single Vector 
+    Vector3 combinedVector = Vec3_New(yaw_input, pitch_input, roll_input);
 
-	// Combine Inputs Into a Single Vector 
-	Vector3 combinedVector = Vec3_New(yaw_input, pitch_input, roll_input);
+    // Adjust Orientation Based on Gravity
+    Vector3 adjustedVector = Vec3_Subtract(combinedVector, Vec3_Scale(gravNorm, Vec3_Dot(combinedVector, gravNorm)));
 
-	// Normalize Output to Maintain Orientation Consistency 
-	Vector3 normalizedVector = Vec3_Normalize(combinedVector);
+    // Normalize Only if Needed (Avoiding Erratic Behavior)
+    if (Vec3_Magnitude(adjustedVector) > EPSILON) {
+        adjustedVector = Vec3_Normalize(adjustedVector);
+    }
 
-	// Return the Adjusted Orientation 
-	return normalizedVector;
+    // Dynamic Roll Compensation (Grip-Based)
+    float adjustedRoll = roll_input - Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, roll_input));
+
+    // Return Final Orientation
+    return Vec3_New(adjustedVector.x, adjustedVector.y, adjustedRoll);
+
+    // Debug Logs 
+    DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs): Yaw = %f, Pitch = %f, Roll = %f\n", yaw_input, pitch_input, roll_input);
 }
+
 
 // Gyro Space Transformation Function
 
