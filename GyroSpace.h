@@ -250,29 +250,18 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
         return;
     }
 
-    // Normalize accelerometer input
+    // Normalize accelerometer input directly
     Vector3 accelNorm = Vec3_Normalize(accel);
 
-    // Compute rotational adjustment using gyroscope over time
+    // Compute gyro-induced gravity shift 
     Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
     Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
 
-    // Adaptive fusion scaling based on motion intensity
-    float motionIntensity = Vec3_Magnitude(gyroRotation);
-    float adaptiveFusionFactor = clamp(fusionFactor * (1.0f + motionIntensity * 0.1f), 0.0f, 1.0f);
+    // Direct gravity correction without added interpolation
+    float gravityCorrectionFactor = fusionFactor * (1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)));
+    gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
 
-    // Smoother gravity correction factor to prevent sudden jumps
-    float gravityCorrectionFactor = adaptiveFusionFactor * powf(1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)), 2.0f);
-
-    // Apply interpolation between rotated gravity and accelerometer input
-    Vector3 newGravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
-
-    // Apply rolling average filtering to smooth transitions
-    static Vector3 prevGravity = {0.0f, 1.0f, 0.0f};
-    gravNorm = Vec3_Lerp(prevGravity, newGravNorm, 0.7f);
-    prevGravity = gravNorm;
-
-    // Normalize final gravity vector
+    // Final normalization step to ensure accuracy
     if (!Vec3_IsZero(gravNorm)) {
         gravNorm = Vec3_Normalize(gravNorm);
     } else {
