@@ -1,6 +1,14 @@
 # GyroSpace-and-Play
 
-A plug-and-play header solution (for C and C++ Project) on implementing Gyro Space for your project. 
+A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming to your game, 
+
+# What is this repository all about?
+
+in 2023, two sourceport devs contemplated Gyro Space orientation code, thinking it would be very hard to implement while not being unintuitive/returns on QoL. I even wished for an easy plug-and-play solution, although: GamepadMotionHelpers already provides that. in 2025: I got bored and decided to played around with Bing AI for a fun experiment, coming off the heels of the work from UnleashedRecomp project. I originally created it for Yamagi Quake 2, but my ambition grew and I decided to repurpose it into a generic header. 
+
+This repository inorder to make it very plug-and-play implementation of Gyro Space orientation derived from GyroWiki's Player Space Gyro article, while including Matrix, Gravity Vectors and Dynamic Orientation. this code is designed with C projects in mind, but is compatible with C++ Projects.
+
+All you need is a subset of codes to implement, and now you have Gyro Space support!
 
 
 ## Example Code:
@@ -189,3 +197,29 @@ switch ((int)gyro_turning_axis->value) {
 }
 
 ```
+
+# Q&A
+
+## 1. I'm working on my Gyro Aiming implementation from scratch, but I want to have a robust Gyro Space implementation.
+
+If you're building a Gyro Aiming implementation on a C Project from scratch, without using any repository that already comes with Motion Sensor implementation? This repository will come included with it.
+
+
+## 2. I'm working on my Gyro Aiming implementation using GamepadMotionHelpers header, can I still use Gyro Space and Play header with it?
+
+No, and I highly recommend using GHM instead for a more complete system. However: there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
+However, [it's still a work-in-progress](https://github.com/AL2009man/GyroSpace-and-Play/pull/1).
+
+## 3. Is this project truly compatible with C++ Projects?
+
+While this header was originally designed around C Projects; I tried ensuring it works on a C++ project, but I have yet to battle test it. Refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/2
+
+## 4. Can I use this header using a different library ?
+
+While this project is best suited for SDL2/SDL3 in mind; The header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
+
+## 5. Where do I start the implementation Gyro Aiming, but I don't know where to begin?
+
+This project is designed for those who already implemented Gyro Aiming, and there are some repositories that will help you get started, like GamepadMotionHelpers and GyroHelpers.
+These  will give you a starting guide, and I strongly suggest sticking with those two.
+
