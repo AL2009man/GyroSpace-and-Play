@@ -27,19 +27,19 @@ Vector3 ProcessGyroInput(Vector3 rawGyro, int mode) {
     case 1: // Local Space Mode
         outputGyro = TransformToLocalSpace(
             rawGyro.x, rawGyro.y, rawGyro.z,
-            0.0f // Coupling factor for local space
+            0.0f // Roll coupling factor for local space
         );
         break;
     case 2: // Player Space Mode
         outputGyro = TransformToPlayerSpace(
             rawGyro.x, rawGyro.y, rawGyro.z,
-            gravityVector // Removed sensitivity parameters
+            gravityVector
         );
         break;
     case 3: // World Space Mode
         outputGyro = TransformToWorldSpace(
             rawGyro.x, rawGyro.y, rawGyro.z,
-            gravityVector // Removed sensitivity parameters
+            gravityVector
         );
         break;
     default:
@@ -130,10 +130,59 @@ int main() {
 
 ```
 
-As a reminder: these two will give you a idea on how to implement Gyro Space code, but if you want a live implementation, here's a codeset from [Yamagi Quake 2](https://github.com/yquake2/yquake2), which uses SDL's Gamepad API to handle Motion Sensors.
+# Q&A
+
+## 1. I'm working on my Gyro Aiming implementation from scratch, but I want to have a robust Gyro Space implementation.
+
+If you're building a Gyro Aiming implementation on a C Project from scratch, without using any repository that already comes with Motion Sensor implementation? This repository will come included with it.
 
 
-### Live Example (C Project):
+## 2. I'm working on my Gyro Aiming implementation using GamepadMotionHelpers header, can I still use Gyro Space and Play header with it?
+
+No, and I highly recommend using GHM instead for a more complete system. However: there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
+However, [it's still a work-in-progress](https://github.com/AL2009man/GyroSpace-and-Play/pull/1).
+
+## 3. Is this project truly compatible with C++ Projects?
+
+While this header was originally designed around C Projects; I tried ensuring it works on a C++ project, but I have yet to battle test it. Refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/2
+
+## 4. Can I use this header using a different library?
+
+While this project is best suited for SDL Input API; The header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
+
+## 5. Where do I start implementing Gyro Orientation, but I don't know where to begin?
+
+Let's begin by using SDL Inputs, specifically: SDL3 Input.
+
+First off: start by implementing Yaw and Roll axis to your Gyro Axis menu first. Once you have tested them: your Yaw and Roll modes will be used as your basis. Make sure you already have Yaw, Roll, Pitcha axis and the X, Y, Z Camera axis ready in advance.
+
+After that, start by making a case number for Loacl Space, Player Space and World Space alongside this codeset:
+
+```Vector3 [local/player/world]Gyro = TransformTo[Local/Player/World]Space(```
+
+then: place `event.gsensor.data` portions down below. 
+
+something like this:
+
+```
+event.gsensor.data[1]
+event.gsensor.data[0]
+event.gsensor.data[2]
+```
+
+near the end, you'd need to place either:
+
+* for Local Space: just make sure you place `0.0f` at the end, this will cover the coupling factor
+* for Player/World Space:, make sure `GetGravityVector()` is placed at the end instead.
+
+and lastly: 
+
+place gyro_yaw/roll/pitch (or whatever name that your game engine handles it's gyro input) alongside the `[local/player/world]Gyro`, also depends on the naming scheme you went with.
+
+and now you're done, but if you want a clearer picture on what would a Gyro Space 
+
+Here's a codeset from [Yamagi Quake 2](https://github.com/yquake2/yquake2), which uses SDL's Gamepad API to handle Motion Sensors. This will give you a good idea on how that approach could be done.
+
 ```
 switch ((int)gyro_turning_axis->value) {
     case 0:  // Yaw mode
@@ -195,31 +244,12 @@ switch ((int)gyro_turning_axis->value) {
         gyro_yaw = gyro_pitch = 0;  // Reset for unsupported modes
         break;
 }
-
 ```
 
-# Q&A
 
-## 1. I'm working on my Gyro Aiming implementation from scratch, but I want to have a robust Gyro Space implementation.
+# Credits
 
-If you're building a Gyro Aiming implementation on a C Project from scratch, without using any repository that already comes with Motion Sensor implementation? This repository will come included with it.
-
-
-## 2. I'm working on my Gyro Aiming implementation using GamepadMotionHelpers header, can I still use Gyro Space and Play header with it?
-
-No, and I highly recommend using GHM instead for a more complete system. However: there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
-However, [it's still a work-in-progress](https://github.com/AL2009man/GyroSpace-and-Play/pull/1).
-
-## 3. Is this project truly compatible with C++ Projects?
-
-While this header was originally designed around C Projects; I tried ensuring it works on a C++ project, but I have yet to battle test it. Refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/2
-
-## 4. Can I use this header using a different library ?
-
-While this project is best suited for SDL2/SDL3 in mind; The header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
-
-## 5. Where do I start the implementation Gyro Aiming, but I don't know where to begin?
-
-This project is designed for those who already implemented Gyro Aiming, and there are some repositories that will help you get started, like GamepadMotionHelpers and GyroHelpers.
-These  will give you a starting guide, and I strongly suggest sticking with those two.
-
+* Jibb Smart - for creating and providing a guideline on making and improving orientation code! (and also GyroWiki,JoyShockMapper and GamepadMotionHelpers!) If it weren't for you: this project wouldn't have happen!
+* HilariousCrow - for being the inspiration for Dynamic Orientation system.
+* CasperH and BenjaminLSR (Handheld Daemon) - for providing advises, while also serving the inspirations for Dynamic Orientation system
+* Protocultor - for setting the foundation for this entire header. :P
