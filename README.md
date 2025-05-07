@@ -4,9 +4,9 @@ A plug-and-play header solution (for C and C++ projects) for implementing Axis o
 
 # What is this repository all about?
 
-in 2023, two sourceport devs contemplated Gyro Space orientation code, thinking it would be very hard to implement while not being unintuitive/returns on QoL. I even wished for an easy plug-and-play solution, although: GamepadMotionHelpers already provides that. in 2025: I got bored and decided to played around with Bing AI for a fun experiment, coming off the heels of the work from UnleashedRecomp project. I originally created it for Yamagi Quake 2, but my ambition grew and I decided to repurpose it into a generic header. 
+In 2023, two sourceport devs contemplated Gyro Space orientation code, thinking it would be very hard to implement while not being unintuitive/returns on QoL. I even wished for an easy plug-and-play solution, although GamepadMotionHelpers already provides that. In 2025: I got bored and decided to play around with Bing AI for a fun experiment, coming off the heels of the work from UnleashedRecomp project. I originally created it for Yamagi Quake 2, but my ambition grew, and I decided to repurpose it into a generic header. 
 
-This repository inorder to make it very plug-and-play implementation of Gyro Space orientation derived from GyroWiki's Player Space Gyro article, while including Matrix, Gravity Vectors and Dynamic Orientation. this code is designed with C projects in mind, but is compatible with C++ Projects.
+This repository is intended to make it a very plug-and-play implementation of Gyro Space orientation derived from [GyroWiki's Player Space Gyro article](http://gyrowiki.jibbsmart.com/blog:player-space-gyro-and-alternatives-explained), while including Matrix, Gravity Vectors and Dynamic Orientation. This code is designed with C projects in mind, but is compatible with C++ Projects.
 
 All you need is a subset of codes to implement, and now you have Gyro Space support!
 
@@ -162,7 +162,7 @@ After that, start by making a case number for Loacl Space, Player Space and Worl
 
 then: place `event.gsensor.data` portions down below. 
 
-something like this:
+Something like this:
 
 ```
 event.gsensor.data[1]
@@ -170,16 +170,14 @@ event.gsensor.data[0]
 event.gsensor.data[2]
 ```
 
-near the end, you'd need to place either:
+Near the end, you'd need to place either:
 
 * for Local Space: just make sure you place `0.0f` at the end, this will cover the coupling factor
 * for Player/World Space:, make sure `GetGravityVector()` is placed at the end instead.
 
-and lastly: 
+And lastly: place `gyro_yaw/roll/pitch` (or whatever name that your game engine handles it's gyro input) alongside the `[local/player/world]Gyro`, also depends on the naming scheme you went with.
 
-place gyro_yaw/roll/pitch (or whatever name that your game engine handles it's gyro input) alongside the `[local/player/world]Gyro`, also depends on the naming scheme you went with.
-
-and now you're done, but if you want a clearer picture on what would a Gyro Space 
+And now you're done, but if you want a clearer picture on what would a Gyro Space 
 
 Here's a codeset from [Yamagi Quake 2](https://github.com/yquake2/yquake2), which uses SDL's Gamepad API to handle Motion Sensors. This will give you a good idea on how that approach could be done.
 
@@ -249,7 +247,7 @@ switch ((int)gyro_turning_axis->value) {
 
 # Credits
 
-* Jibb Smart - for creating and providing a guideline on making and improving orientation code! (and also GyroWiki,JoyShockMapper and GamepadMotionHelpers!) If it weren't for you: this project wouldn't have happen!
-* HilariousCrow - for being the inspiration for Dynamic Orientation system.
-* CasperH and BenjaminLSR (Handheld Daemon) - for providing advises, while also serving the inspirations for Dynamic Orientation system
+* Jibb Smart - for creating and providing a guideline on making and improving orientation code! (and also [GyroWiki](http://gyrowiki.jibbsmart.com/), [JoyShockMapper](https://github.com/Electronicks/JoyShockMapper) and [GamepadMotionHelpers](https://github.com/JibbSmart/GamepadMotionHelpers)!) If it weren't for you: this project wouldn't happened!
+* HilariousCrow - for being the inspiration for the Dynamic Orientation system.
+* CasperH and BenjaminLSR ([Handheld Companion](https://github.com/Valkirie/HandheldCompanion)) - for providing advice, while also serving as the inspiration for the Dynamic Orientation system
 * Protocultor - for setting the foundation for this entire header. :P
