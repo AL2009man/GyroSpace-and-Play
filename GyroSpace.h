@@ -62,17 +62,17 @@ extern "C" {
 #define DEBUG_LOG(fmt, ...)
 #endif
 
-// Type Definitions 
+// Type Definitions
 
 typedef struct {
-	float x, y, z;
+float x, y, z;
 } Vector3;
 
 typedef struct {
-	float m[4][4];
+float m[4][4];
 } Matrix4;
 
-// Utility Functions 
+// Utility Functions
 
 /* Scalar Operations */
 
@@ -80,7 +80,7 @@ typedef struct {
  * Clamps a value between a minimum and maximum.
  */
 static inline float clamp(float value, float min, float max) {
-	return (value > max) ? max : (value < min) ? min : value;
+return (value > max) ? max : (value < min) ? min : value;
 }
 
 /* Vector Creation */
@@ -89,7 +89,11 @@ static inline float clamp(float value, float min, float max) {
  * Creates a new vector with given x, y, z values.
  */
 static inline Vector3 Vec3_New(float x, float y, float z) {
-    return Vector3{x, y, z};
+    Vector3 result;
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    return result;
 }
 
 /* Basic Vector Operations */
@@ -98,21 +102,21 @@ static inline Vector3 Vec3_New(float x, float y, float z) {
  * Adds two vectors component-wise.
  */
 static inline Vector3 Vec3_Add(Vector3 a, Vector3 b) {
-	return Vec3_New(a.x + b.x, a.y + b.y, a.z + b.z);
+return Vec3_New(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
 /**
  * Subtracts one vector from another.
  */
 static inline Vector3 Vec3_Subtract(Vector3 a, Vector3 b) {
-	return Vec3_New(a.x - b.x, a.y - b.y, a.z - b.z);
+return Vec3_New(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 /**
  * Scales a vector by a scalar value.
  */
 static inline Vector3 Vec3_Scale(Vector3 v, float scalar) {
-	return Vec3_New(v.x * scalar, v.y * scalar, v.z * scalar);
+return Vec3_New(v.x * scalar, v.y * scalar, v.z * scalar);
 }
 
 /* Advanced Vector Operations */
@@ -121,44 +125,49 @@ static inline Vector3 Vec3_Scale(Vector3 v, float scalar) {
  * Computes the dot product of two vectors.
  */
 static inline float Vec3_Dot(Vector3 a, Vector3 b) {
-	return a.x * b.x + a.y * b.y + a.z * b.z;
+return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 /**
  * Computes the cross product of two vectors.
  */
 static inline Vector3 Vec3_Cross(Vector3 a, Vector3 b) {
-	return Vec3_New(
-		a.y * b.z - a.z * b.y,
-		a.z * b.x - a.x * b.z,
-		a.x * b.y - a.y * b.x
-	);
+return Vec3_New(
+a.y * b.z - a.z * b.y,
+a.z * b.x - a.x * b.z,
+a.x * b.y - a.y * b.x
+);
 }
 
 /**
  * Computes the magnitude (length) of a vector.
  */
 static inline float Vec3_Magnitude(Vector3 v) {
-	return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
 /**
  * Normalizes a vector (scales it to unit length).
  */
 static inline Vector3 Vec3_Normalize(Vector3 v) {
-	float magnitude = Vec3_Magnitude(v);
-	if (magnitude < EPSILON) {
-		DEBUG_LOG("Warning: Attempted to normalize a near-zero vector.\n");
-		return Vec3_Scale(v, 1.0f);
-	}
-	return Vec3_Scale(v, 1.0f / magnitude);
+float magnitude = Vec3_Magnitude(v);
+if (magnitude < EPSILON) {
+DEBUG_LOG("Warning: Attempted to normalize a near-zero vector.\n");
+// Return a zero vector or handle as an error, depending on desired behavior.
+// Returning a zero vector might cause issues later. Returning the original
+// vector scaled by 1.0f is also problematic if magnitude is 0.
+// A safer approach might be to return a default vector or the zero vector.
+// Let's return a zero vector for now, assuming callers handle it.
+return Vec3_New(0.0f, 0.0f, 0.0f);
+}
+return Vec3_Scale(v, 1.0f / magnitude);
 }
 
 /**
  * Checks if a vector is near zero (all components close to zero).
  */
 static inline bool Vec3_IsZero(Vector3 v) {
-	return (fabsf(v.x) < EPSILON && fabsf(v.y) < EPSILON && fabsf(v.z) < EPSILON);
+return (fabsf(v.x) < EPSILON && fabsf(v.y) < EPSILON && fabsf(v.z) < EPSILON);
 }
 
 /* Specialized Vector Operations */
@@ -167,74 +176,114 @@ static inline bool Vec3_IsZero(Vector3 v) {
  * Performs linear interpolation between two vectors.
  */
 static inline Vector3 Vec3_Lerp(Vector3 a, Vector3 b, float t) {
-	return Vec3_Add(a, Vec3_Scale(Vec3_Subtract(b, a), t));
+// Clamp t to [0, 1] to ensure interpolation
+t = clamp(t, 0.0f, 1.0f);
+return Vec3_Add(a, Vec3_Scale(Vec3_Subtract(b, a), t));
 }
 
 /**
  * Reflects a vector against a normal.
  */
 static inline Vector3 Vec3_Reflect(Vector3 v, Vector3 normal) {
-	return Vec3_Subtract(v, Vec3_Scale(normal, 2.0f * Vec3_Dot(v, normal)));
+return Vec3_Subtract(v, Vec3_Scale(normal, 2.0f * Vec3_Dot(v, normal)));
 }
 
-// Matrix Operations 
+// Matrix Operations
 
 /**
  * Returns an identity matrix.
  */
 static inline Matrix4 Matrix4_Identity() {
-	Matrix4 matrix = { {
-			{1.0f, 0.0f, 0.0f, 0.0f},
-			{0.0f, 1.0f, 0.0f, 0.0f},
-			{0.0f, 0.0f, 1.0f, 0.0f},
-			{0.0f, 0.0f, 0.0f, 1.0f}
-	} };
-	return matrix;
+Matrix4 matrix = { {
+{1.0f, 0.0f, 0.0f, 0.0f},
+{0.0f, 1.0f, 0.0f, 0.0f},
+{0.0f, 0.0f, 1.0f, 0.0f},
+{0.0f, 0.0f, 0.0f, 1.0f}
+} };
+return matrix;
 }
 
 /**
  * Creates a transformation matrix based on the gravity vector.
- * The gravity vector determines the "up" direction.
+ * The gravity vector determines the "up" direction in the sensor frame.
+ * This matrix transforms vectors from the sensor frame to a world frame
+ * where the Y-axis is up.
  */
 static inline Matrix4 Matrix4_FromGravity(Vector3 gravNorm) {
-	gravNorm = Vec3_Normalize(gravNorm);
+    // Ensure gravNorm is normalized
+    gravNorm = Vec3_Normalize(gravNorm);
 
-	Vector3 upVector = Vec3_New(0.0f, 1.0f, 0.0f);
-	Vector3 zAxis = Vec3_Cross(upVector, gravNorm);
-	if (Vec3_IsZero(zAxis)) zAxis = Vec3_New(0.0f, 0.0f, 1.0f);
+    // If gravNorm is near zero after normalization attempt, return identity or handle error
+    if (Vec3_IsZero(gravNorm)) {
+        DEBUG_LOG("Warning: Gravity vector is near zero, cannot create valid matrix. Returning Identity.\n");
+        return Matrix4_Identity();
+    }
 
-	Matrix4 matrix = { {
-		{1.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, gravNorm.y, gravNorm.z, 0.0f},
-		{zAxis.x, -gravNorm.z, gravNorm.y, 0.0f},
-		{0.0f, 0.0f, 0.0f, 1.0f}
-	} };
-	return matrix;
+    // World up vector
+    Vector3 worldUp = Vec3_New(0.0f, 1.0f, 0.0f);
+
+    Vector3 xAxis, yAxis, zAxis;
+
+    // The Y-axis of the sensor frame in world coordinates is the normalized gravity vector
+    yAxis = gravNorm;
+
+    // Calculate the Z-axis. It should be orthogonal to the world up vector and the gravity vector.
+    // Use cross product of worldUp and yAxis.
+    Vector3 tempZ = Vec3_Cross(worldUp, yAxis);
+
+    // Handle the case where gravNorm is parallel to worldUp (tempZ is near zero)
+    if (Vec3_IsZero(tempZ)) {
+        // If gravNorm is (0, 1, 0) or (0, -1, 0), choose a default orthogonal Z-axis.
+        // Use (0, 0, 1) as a default Z-axis if Y-axis is along the world Y-axis.
+        zAxis = Vec3_New(0.0f, 0.0f, 1.0f);
+    } else {
+        zAxis = Vec3_Normalize(tempZ);
+    }
+
+    // Calculate the X-axis. It should be orthogonal to Y-axis and Z-axis.
+    // Use cross product of yAxis and zAxis.
+    xAxis = Vec3_Cross(yAxis, zAxis);
+    // xAxis should be normalized if yAxis and zAxis are orthonormal, but normalize to be safe.
+    xAxis = Vec3_Normalize(xAxis);
+
+    // Construct the rotation matrix. The rows of the matrix are the basis vectors
+    // of the sensor frame expressed in world coordinates.
+    Matrix4 matrix = { {
+        {xAxis.x, xAxis.y, xAxis.z, 0.0f},
+        {yAxis.x, yAxis.y, yAxis.z, 0.0f},
+        {zAxis.x, zAxis.y, zAxis.z, 0.0f},
+        {0.0f,    0.0f,    0.0f,    1.0f}
+    } };
+
+    return matrix;
 }
 
 /**
  * Multiplies a matrix by a vector (row-major order).
+ * Transforms the vector from the coordinate space represented by the matrix
+ * to the standard basis.
  */
 static inline Vector3 MultiplyMatrixVector(Matrix4 matrix, Vector3 vector) {
-	// Assume w = 1.0 for 3D vectors
-	float w = 1.0f;
+// Assume w = 1.0 for 3D vectors for transformation
+float w = 1.0f;
 
-	return Vec3_New(
-		matrix.m[0][0] * vector.x + matrix.m[1][0] * vector.y + matrix.m[2][0] * vector.z + matrix.m[3][0] * w,
-		matrix.m[0][1] * vector.x + matrix.m[1][1] * vector.y + matrix.m[2][1] * vector.z + matrix.m[3][1] * w,
-		matrix.m[0][2] * vector.x + matrix.m[1][2] * vector.y + matrix.m[2][2] * vector.z + matrix.m[3][2] * w
-	);
+return Vec3_New(
+matrix.m[0][0] * vector.x + matrix.m[0][1] * vector.y + matrix.m[0][2] * vector.z + matrix.m[0][3] * w,
+matrix.m[1][0] * vector.x + matrix.m[1][1] * vector.y + matrix.m[1][2] * vector.z + matrix.m[1][3] * w,
+matrix.m[2][0] * vector.x + matrix.m[2][1] * vector.y + matrix.m[2][2] * vector.z + matrix.m[2][3] * w
+);
 }
 
 // Global Gravity Vector Management
 
 /**
- * Global gravity vector (default set to (0, 1, 0)).
+ * Global gravity vector (default set to (0, 1, 0) - representing world up).
  */
 static Vector3 gravNorm = { 0.0f, 1.0f, 0.0f };
 
 /**
- * Updates the global gravity vector using sensor fusion.
+ * Updates the global gravity vector using sensor fusion (complementary filter).
+ * Blends gyro-integrated orientation with accelerometer reading.
  */
 static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, float fusionFactor, float deltaTime) {
     // Validate fusionFactor
@@ -250,22 +299,31 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
         return;
     }
 
-    // Normalize accelerometer input directly
+    // Normalize accelerometer input
     Vector3 accelNorm = Vec3_Normalize(accel);
 
-    // Compute gyro-induced gravity shift 
-    Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
-    Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
+    // If accelerometer reading is near zero, skip accelerometer correction
+    if (Vec3_IsZero(accelNorm)) {
+         DEBUG_LOG("Warning: Accelerometer reading is near zero. Skipping accelerometer correction.\n");
+         // Only apply gyro rotation
+         Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
+         gravNorm = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
+    } else {
+        // Compute gyro-induced gravity shift
+        Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
+        Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
 
-    // Direct gravity correction without added interpolation
-    float gravityCorrectionFactor = fusionFactor * (1.0f - fabsf(Vec3_Dot(gravNorm, accelNorm)));
-    gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, gravityCorrectionFactor);
+        // Blend gyro-predicted gravity with accelerometer reading
+        // Use fusionFactor directly as the interpolation weight
+        gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, fusionFactor);
+    }
+
 
     // Final normalization step to ensure accuracy
     if (!Vec3_IsZero(gravNorm)) {
         gravNorm = Vec3_Normalize(gravNorm);
     } else {
-        DEBUG_LOG("Warning: Gravity vector became near-zero. Resetting to default (0,1,0).\n");
+        DEBUG_LOG("Warning: Gravity vector became near-zero after update. Resetting to default (0,1,0).\n");
         gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
     }
 
@@ -314,18 +372,18 @@ static inline Vector3 GetGravityVector(void) {
  */
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
 
-    // Validate Inputs 
+    // Validate Inputs
     if (isnan(yaw_input) || isnan(pitch_input) || isnan(roll_input)) {
         DEBUG_LOG("Error: NaN detected in inputs. Returning zero vector.\n");
         return Vec3_New(0.0f, 0.0f, 0.0f);
     }
 
-    // Clamp Inputs to Prevent Extreme Values 
+    // Clamp Inputs to Prevent Extreme Values
     yaw_input = clamp(yaw_input, -360.0f, 360.0f);
     pitch_input = clamp(pitch_input, -360.0f, 360.0f);
     roll_input = clamp(roll_input, -360.0f, 360.0f);
 
-    // Combine Inputs Into a Single Vector 
+    // Combine Inputs Into a Single Vector
     Vector3 combinedVector = Vec3_New(yaw_input, pitch_input, roll_input);
 
     // Adjust Orientation Based on Gravity
@@ -339,13 +397,12 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
     // Dynamic Roll Compensation (Grip-Based)
     float adjustedRoll = roll_input - Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, roll_input));
 
+    // Debug Logs
+    DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs): Yaw = %f, Pitch = %f, Roll = %f\n", yaw_input, pitch_input, roll_input);
+
     // Return Final Orientation
     return Vec3_New(adjustedVector.x, adjustedVector.y, adjustedRoll);
-
-    // Debug Logs 
-    DEBUG_LOG("Dynamic Orientation Adjustment (Raw Inputs): Yaw = %f, Pitch = %f, Roll = %f\n", yaw_input, pitch_input, roll_input);
 }
-
 
 // Gyro Space Transformation Function
 
