@@ -1,19 +1,19 @@
 # GyroSpace-and-Play
 
-A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming to your game, 
+A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming in your project. 
 
 # What is this repository all about?
 
-In 2023, two sourceport devs contemplated Gyro Space orientation code, thinking it would be very hard to implement while not being unintuitive/returns on QoL. I even wished for an easy plug-and-play solution, although GamepadMotionHelpers already provides that. In 2025: I got bored and decided to play around with Bing AI for a fun experiment, coming off the heels of the work from UnleashedRecomp project. I originally created it for Yamagi Quake 2, but my ambition grew, and I decided to repurpose it into a generic header. 
+In 2023, two sourceport devs contemplated Gyro Space orientation code, thinking it would be very hard to implement while not being unintuitive/returns on QoL. I even wished for an easy plug-and-play solution, although GamepadMotionHelpers already provides that. In 2025: I got bored and decided to play around with Bing AI for a fun experiment, coming off the heels of the work from UnleashedRecomp project. It was originally designed for Yamagi Quake 2, but my ambition grew, and I decided to repurpose it into a generic header. 
 
-This repository is intended to make it a very plug-and-play implementation of Gyro Space orientation derived from [GyroWiki's Player Space Gyro article](http://gyrowiki.jibbsmart.com/blog:player-space-gyro-and-alternatives-explained), while including Matrix, Gravity Vectors and Dynamic Orientation. This code is designed with C projects in mind, but is compatible with C++ Projects.
+This repository is intended to be a plug-and-play implementation of 3DOF to 2D Conversion Style, originally derived from [GyroWiki's Player Space Gyro article](http://gyrowiki.jibbsmart.com/blog:player-space-gyro-and-alternatives-explained), while including Matrix, Gravity Vectors and Dynamic Orientation. This code is designed with C projects in mind, but is compatible with C++ Projects.
 
 All you need is a subset of codes to implement, and now you have Gyro Space support!
 
 
 ## Example Code:
 
-If you'd like to have a good idea on how to implement Gyro Space orientation codeset, here's a basic example of what a generic gyro aiming's Axis Selection code could looks like:
+If you'd like to have a good idea on how to implement Gyro Space orientation codeset, here's a basic example of what a generic gyro aiming's Axis Selection code could look like:
 
 ### C Project:
 
@@ -134,33 +134,33 @@ int main() {
 
 ## 1. I'm working on my Gyro Aiming implementation from scratch, but I want to have a robust Gyro Space implementation.
 
-If you're building a Gyro Aiming implementation on a C Project from scratch, without using any repository that already comes with Motion Sensor implementation? This repository will come included with it.
+If you're building a Gyro Aiming implementation on a C Project from scratch, without using any repository that already comes with a Motion Sensor implementation? This repository will cover that area.
 
 
 ## 2. I'm working on my Gyro Aiming implementation using GamepadMotionHelpers header, can I still use Gyro Space and Play header with it?
 
-No, and I highly recommend using GHM instead for a more complete system. However: there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
+No, and I highly recommend using GHM instead for a more complete system. However, there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
 However, [it's still a work-in-progress](https://github.com/AL2009man/GyroSpace-and-Play/pull/1).
 
 ## 3. Is this project truly compatible with C++ Projects?
 
-While this header was originally designed around C Projects; I tried ensuring it works on a C++ project, but I have yet to battle test it. Refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/2
+While this header was originally designed around C Projects, I tried ensuring it works on a C++ project, but I have yet to battle test it. Refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/2
 
 ## 4. Can I use this header using a different library?
 
-While this project is best suited for SDL Input API; The header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
+While this project is best suited for SDL Input API, the header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
 
 ## 5. Where do I start implementing Gyro Orientation, but I don't know where to begin?
 
-Let's begin by using SDL Inputs, specifically: SDL3 Input.
+Let's begin by using SDL Inputs, specifically SDL3 Input.
 
-First off: start by implementing Yaw and Roll axis to your Gyro Axis menu first. Once you have tested them: your Yaw and Roll modes will be used as your basis. Make sure you already have Yaw, Roll, Pitcha axis and the X, Y, Z Camera axis ready in advance.
+First off: start by implementing Yaw and Roll axes to your Gyro Axis menu first. Once you have tested it, your Yaw and Roll modes will be used as your basis. Make sure you already have Yaw, Roll, Pitch axes and the X, Y, Z Camera axes ready in advance.
 
-After that, start by making a case number for Loacl Space, Player Space and World Space alongside this codeset:
+After that, start by making a case number for Local Space, Player Space and World Space alongside this codeset:
 
 ```Vector3 [local/player/world]Gyro = TransformTo[Local/Player/World]Space(```
 
-then: place `event.gsensor.data` portions down below. 
+Then: place `event.gsensor.data` portions down below. 
 
 Something like this:
 
@@ -177,7 +177,7 @@ Near the end, you'd need to place either:
 
 And lastly: place `gyro_yaw/roll/pitch` (or whatever name that your game engine handles it's gyro input) alongside the `[local/player/world]Gyro`, also depends on the naming scheme you went with.
 
-And now you're done, but if you want a clearer picture on what would a Gyro Space 
+And now you're done, but if you want a clearer picture of what a Gyro Space implementation would look like:
 
 Here's a codeset from [Yamagi Quake 2](https://github.com/yquake2/yquake2), which uses SDL's Gamepad API to handle Motion Sensors. This will give you a good idea on how that approach could be done.
 
