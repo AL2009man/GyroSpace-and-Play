@@ -1,6 +1,6 @@
 # GyroSpace-and-Play
 
-A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming in your project. 
+A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming in your project.
 
 # What is this repository all about?
 
@@ -140,6 +140,7 @@ If you're building a Gyro Aiming implementation on a C Project from scratch, wit
 ## 2. I'm working on my Gyro Aiming implementation using GamepadMotionHelpers header, can I still use Gyro Space and Play header with it?
 
 No, and I highly recommend using GHM instead for a more complete system. However, there are plans for GamepadMotionHelper support as an option, making it more akin to an Abstraction Layer on top of GamepadMotionHelper.
+
 However, [it's still a work-in-progress](https://github.com/AL2009man/GyroSpace-and-Play/pull/1).
 
 ## 3. Is this project truly compatible with C++ Projects?
@@ -150,7 +151,7 @@ While this header was originally designed around C Projects, I tried ensuring it
 
 While this project is best suited for SDL Input API, the header is generic enough to allow support for others like PlayStation Input API, Microsoft GameInput, JoyShockLibrary, etc.
 
-## 5. Where do I start implementing Gyro Orientation, but I don't know where to begin?
+## 5. Where do I start implementing Gyro Orientation, but I don't know where to start?
 
 Let's begin by using SDL Inputs, specifically SDL3 Input.
 
@@ -158,7 +159,9 @@ First off: start by implementing Yaw and Roll axes to your Gyro Axis menu first.
 
 After that, start by making a case number for Local Space, Player Space and World Space alongside this codeset:
 
-```Vector3 [local/player/world]Gyro = TransformTo[Local/Player/World]Space(```
+```
+Vector3 [local/player/world]Gyro = TransformTo[Local/Player/World]Space(
+```
 
 Then: place `event.gsensor.data` portions down below. 
 
@@ -247,7 +250,7 @@ switch ((int)gyro_turning_axis->value) {
 
 # Credits
 
-* Jibb Smart - for creating and providing a guideline on making and improving orientation code! (and also [GyroWiki](http://gyrowiki.jibbsmart.com/), [JoyShockMapper](https://github.com/Electronicks/JoyShockMapper) and [GamepadMotionHelpers](https://github.com/JibbSmart/GamepadMotionHelpers)!) If it weren't for you: this project wouldn't happened!
-* HilariousCrow - for being the inspiration for the Dynamic Orientation system.
-* CasperH and BenjaminLSR ([Handheld Companion](https://github.com/Valkirie/HandheldCompanion)) - for providing advice, while also serving as the inspiration for the Dynamic Orientation system
-* Protocultor - for setting the foundation for this entire header. :P
+* [Jibb Smart](https://github.com/JibbSmart) - for creating and providing a guideline on making and improving orientation code! (and also [GyroWiki](http://gyrowiki.jibbsmart.com/), [JoyShockMapper](https://github.com/Electronicks/JoyShockMapper) and [GamepadMotionHelpers](https://github.com/JibbSmart/GamepadMotionHelpers)!) If it weren't for you: this project wouldn't happened!
+* [HilariousCow](https://github.com/HilariousCow) - for being the inspiration for the Dynamic Orientation system.
+* [CasperH](https://github.com/CasperH) and [Valkirie](https://github.com/Valkirie) ([Handheld Companion](https://github.com/Valkirie/HandheldCompanion)) - for providing advice, while also serving as the inspiration for the Dynamic Orientation system
+* [Protocultor](https://github.com/Protocultor) - for setting the foundation for this entire header. :P
