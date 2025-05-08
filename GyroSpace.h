@@ -149,18 +149,16 @@
  /**
   * Normalizes a vector (scales it to unit length).
   */
- static inline Vector3 Vec3_Normalize(Vector3 v) {
- float magnitude = Vec3_Magnitude(v);
- if (magnitude < EPSILON) {
- DEBUG_LOG("Warning: Attempted to normalize a near-zero vector.\n");
- // Return a zero vector or handle as an error, depending on desired behavior.
- // Returning a zero vector might cause issues later. Returning the original
- // vector scaled by 1.0f is also problematic if magnitude is 0.
- // A safer approach might be to return a default vector or the zero vector.
- // Let's return a zero vector for now, assuming callers handle it.
+ static inline Vector3 Vec3_Normalize(Vector3 vector) {
+ float length = Vec3_Magnitude(vector);
+
+ // Avoid division by zero if the vector is near zero
+ if (length < EPSILON) {
  return Vec3_New(0.0f, 0.0f, 0.0f);
  }
- return Vec3_Scale(v, 1.0f / magnitude);
+
+ // Normalize the vector
+ return Vec3_Scale(vector, 1.0f / length);
  }
  
  /**
