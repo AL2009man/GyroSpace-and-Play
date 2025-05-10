@@ -54,16 +54,16 @@
 #endif
 
 // Debugging and Logging
-#ifdef ENABLE_DEBUG_LOGS
+#ifdef ENABLE_GYROSPACE_DEBUG_LOGS
     #ifdef __cplusplus
         #include <iostream>
-        #define DEBUG_LOG(fmt, ...) std::cout << fmt
+        #define GYROSPACE_DEBUG_LOG(fmt, ...) std::cout << fmt
     #else
         #include <stdio.h>
-        #define DEBUG_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+        #define GYROSPACE_DEBUG_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
     #endif
 #else
-    #define DEBUG_LOG(fmt, ...)
+    #define GYROSPACE_DEBUG_LOG(fmt, ...)
 #endif
 
 // Type Definitions
@@ -256,7 +256,6 @@ static inline Vector3 GetGravityVector(void) {
 Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, float roll_input) {
     // Validate inputs.
     if (isnan(yaw_input) || isnan(pitch_input) || isnan(roll_input)) {
-        DEBUG_LOG("Error: NaN detected in inputs. Returning zero vector.\n");
         return Vec3_New(0.0f, 0.0f, 0.0f);
     }
 
@@ -277,9 +276,6 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
     
     // Dynamic roll compensation based on gravity.
     float adjRoll = roll_input - Vec3_Dot(gravNorm, Vec3_New(0.0f, 0.0f, roll_input));
-    
-    DEBUG_LOG("Dynamic Orientation Adjust: Yaw = %f, Pitch = %f, Roll = %f\n",
-              yaw_input, pitch_input, roll_input);
     
     return Vec3_New(adjusted.x, adjusted.y, adjRoll);
 }
