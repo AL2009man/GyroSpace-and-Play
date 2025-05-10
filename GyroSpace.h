@@ -4,8 +4,8 @@
  * Gyro Space to Play - A plug-and-play Gyro Space Transformer code
  *
  * Provides functionality for transforming gyro inputs into Local Space,
- * Player Space, and World Space, while handling sensitivity adjustments
- * and gravity alignment and dynamic orientation.
+ * Player Space, and World Space, while handling sensitivity adjustments,
+ * gravity alignment and dynamic orientation.
  *  
  * Compatible with both C and C++ environments.
  *
