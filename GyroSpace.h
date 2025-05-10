@@ -294,9 +294,7 @@ extern "C" {
 #endif
 
     Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float coupling_factor);
-
     Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll, Vector3 gravity_vector);
-
     Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, Vector3 gravity_vector);
 
 #ifdef __cplusplus
