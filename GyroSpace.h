@@ -15,8 +15,8 @@
  * =======================================================================
  */
 
- #ifndef GYROSPACE_HPP
- #define GYROSPACE_HPP
+#ifndef GYROSPACE_HPP
+#define GYROSPACE_HPP
  
 #include <math.h>
 #include <stdbool.h>
