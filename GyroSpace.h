@@ -31,20 +31,6 @@ extern "C" {
     #define EPSILON 1e-5
 #endif
 
-// Debugging and Logging
-#ifdef ENABLE_GYROSPACE_DEBUG_LOGS
-    #ifdef __cplusplus
-        #include <iostream>
-        #include <cstdio>
-        #define GYROSPACE_DEBUG_LOG(fmt, ...) std::printf(fmt, ##__VA_ARGS__)
-    #else
-        #include <stdio.h>
-        #define GYROSPACE_DEBUG_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
-    #endif
-#else
-    #define GYROSPACE_DEBUG_LOG(fmt, ...)
-#endif
-
 // Type Definitions
 typedef struct {
     float x, y, z;
