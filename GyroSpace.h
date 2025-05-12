@@ -258,7 +258,7 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
  * Preserves natural gyro responsiveness for intuitive movement.
  */
 static inline Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float couplingFactor) {
-    // Adjust roll to compensate for yaw–roll coupling, accounting for Natural Sensitiviiy Scale.
+    // Adjust roll to compensate for yaw–roll coupling, accounting for Natural Sensitivity Scale.
     float adjustedRoll = (roll * 0.85f) - (yaw * couplingFactor);
     
     // Combine the inputs into a local gyro vector.
