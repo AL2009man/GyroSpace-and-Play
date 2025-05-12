@@ -18,34 +18,12 @@
  #ifndef GYROSPACE_HPP
  #define GYROSPACE_HPP
  
- #ifdef __cplusplus
- #include <cmath>
- #include <cstdio>
- #include <cstdbool>
- #include <cstdint>
- extern "C" {
- #else
- #include "math.h"
- #include "stdbool.h"
- #include "stdint.h"
- #endif
- 
-// Ensure s32 and u32 are correctly defined
-#ifndef s32
-    #define s32 int32_t
-#endif
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#ifndef u32
-    #define u32 uint32_t
-#endif
-
-// Define boolean types
-#ifndef bool
-    #define bool s32
-#endif
-
-#ifndef ubool
-    #define ubool u32
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 // Define a small epsilon if not already defined
@@ -57,7 +35,8 @@
 #ifdef ENABLE_GYROSPACE_DEBUG_LOGS
     #ifdef __cplusplus
         #include <iostream>
-        #define GYROSPACE_DEBUG_LOG(fmt, ...) std::cout << fmt
+        #include <cstdio>
+        #define GYROSPACE_DEBUG_LOG(fmt, ...) std::printf(fmt, ##__VA_ARGS__)
     #else
         #include <stdio.h>
         #define GYROSPACE_DEBUG_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -78,8 +57,8 @@ typedef struct {
 // Utility Functions
 
 /** Clamps a value between min and max. */
-static inline float clamp(float value, float min, float max) {
-    return (value > max) ? max : (value < min) ? min : value;
+static inline float clamp(float value, float minVal, float maxVal) {
+    return (value > maxVal) ? maxVal : (value < minVal) ? minVal : value;
 }
 
 /** Creates a new Vector3. */
@@ -286,20 +265,6 @@ Vector3 TransformWithDynamicOrientation(float yaw_input, float pitch_input, floa
   * These functions transform gyro inputs into different spaces (Local, Player, World)
   * while handling sensitivity adjustments and gravity alignment.
   */
- 
- 
-// C wrapper for gyro transformation functions, ensuring compatibility with both C and C++.
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-    Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, float coupling_factor);
-    Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll, Vector3 gravity_vector);
-    Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, Vector3 gravity_vector);
-
-#ifdef __cplusplus
-}
-#endif
 
  /**
   * Transforms gyro inputs to Local Space.
@@ -385,8 +350,8 @@ Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, Vector3 gravit
     return worldGyro;
 }
  
- #ifdef __cplusplus
- }
- #endif
+#ifdef __cplusplus
+}
+#endif
  
- #endif // GYROSPACE_H
+#endif // GYROSPACE_H
