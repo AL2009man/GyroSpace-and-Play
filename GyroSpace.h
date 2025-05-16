@@ -281,8 +281,15 @@ static inline Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll,
     // Compute world-aligned yaw using gravity (mixes yaw and roll inputs).
     float worldYaw = yaw * gravity.y + roll * gravity.z;
 
-    // Adjust roll to remove the unwanted influence from gravity.
-    float adjustedRoll = roll - (roll * gravity.y);
+    // Project the roll axis (0,0,1) onto the plane perpendicular to gravity.
+    Vector3 rollAxis = Vec3_New(0.0f, 0.0f, 1.0f);
+    float gravDotRoll = Vec3_Dot(gravity, rollAxis);
+    Vector3 projectedRollAxis = Vec3_Subtract(rollAxis, Vec3_Scale(gravity, gravDotRoll));
+    float adjustedRoll = 0.0f;
+    if (!Vec3_IsZero(projectedRollAxis)) {
+        projectedRollAxis = Vec3_Normalize(projectedRollAxis);
+        adjustedRoll = roll * Vec3_Magnitude(projectedRollAxis);
+    }
 
     // Apply yaw relaxation to smooth out abrupt inversions.
     float yawRelaxation = 1.41f;
@@ -308,27 +315,34 @@ static inline Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, 
     } else {
         gravity = Vec3_Normalize(gravity);
     }
-    
+
     // Compute world yaw by mixing yaw and roll according to gravity.
     float worldYaw = yaw * gravity.y + roll * gravity.z;
-    
-    // Adjust roll to remove the component influenced by gravity.
-    float adjustedRoll = roll - (roll * gravity.y);
-    
+
+    // Project the roll axis (0,0,1) onto the plane perpendicular to gravity.
+    Vector3 rollAxis = Vec3_New(0.0f, 0.0f, 1.0f);
+    float gravDotRoll = Vec3_Dot(gravity, rollAxis);
+    Vector3 projectedRollAxis = Vec3_Subtract(rollAxis, Vec3_Scale(gravity, gravDotRoll));
+    float adjustedRoll = 0.0f;
+    if (!Vec3_IsZero(projectedRollAxis)) {
+        projectedRollAxis = Vec3_Normalize(projectedRollAxis);
+        adjustedRoll = roll * Vec3_Magnitude(projectedRollAxis);
+    }
+
     // Project the controller's local pitch axis (1, 0, 0) onto the horizontal plane.
     float gravDotPitch = Vec3_Dot(gravity, Vec3_New(1.0f, 0.0f, 0.0f));
     Vector3 pitchVector = Vec3_Subtract(Vec3_New(1.0f, 0.0f, 0.0f), Vec3_Scale(gravity, gravDotPitch));
     if (!Vec3_IsZero(pitchVector)) {
         pitchVector = Vec3_Normalize(pitchVector);
     }
-    
+
     // Compute adjusted pitch based on the projected pitch axis.
     float adjustedPitch = Vec3_Dot(Vec3_New(pitch, 0.0f, adjustedRoll), pitchVector);
-    
+
     // Transform the computed components into world space.
     Matrix4 worldViewMatrix = Matrix4_FromGravity(gravity);
     Vector3 worldGyro = MultiplyMatrixVector(worldViewMatrix, Vec3_New(worldYaw, adjustedPitch, adjustedRoll));
-    
+
     return worldGyro;
 }
  
