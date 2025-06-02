@@ -173,13 +173,13 @@ static Vector3 gravNorm = { 0.0f, 1.0f, 0.0f };
 static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, float fusionFactor, float deltaTime) {
     if (fusionFactor < 0.0f || fusionFactor > 1.0f)
         return;
-    
+
     if (isnan(accel.x) || isnan(accel.y) || isnan(accel.z) ||
         isnan(gyroRotation.x) || isnan(gyroRotation.y) || isnan(gyroRotation.z))
         return;
-    
+
     Vector3 accelNorm = Vec3_Normalize(accel);
-    
+
     if (Vec3_IsZero(accelNorm)) {
         Vector3 rotationDelta = Vec3_Cross(gyroRotation, gravNorm);
         gravNorm = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
@@ -188,22 +188,34 @@ static inline void UpdateGravityVector(Vector3 accel, Vector3 gyroRotation, floa
         Vector3 rotatedGravity = Vec3_Add(gravNorm, Vec3_Scale(rotationDelta, deltaTime));
         gravNorm = Vec3_Lerp(rotatedGravity, accelNorm, fusionFactor);
     }
-    
+
     if (!Vec3_IsZero(gravNorm))
         gravNorm = Vec3_Normalize(gravNorm);
     else
         gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+
+    // Prevent gravity from being exactly (0,0,1)
+    if (fabsf(gravNorm.x) < EPSILON && fabsf(gravNorm.y) < EPSILON && fabsf(gravNorm.z - 1.0f) < EPSILON) {
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+    }
 }
 
 /** Sets the global gravity vector manually. */
 static inline void SetGravityVector(float x, float y, float z) {
     if (isnan(x) || isnan(y) || isnan(z))
         return;
-    
+
     Vector3 newGrav = Vec3_New(x, y, z);
     if (Vec3_Magnitude(newGrav) < EPSILON)
         return;
-    
+
+    // Prevent gravity from being exactly (0,0,1) unless explicitly allowed
+    if (fabsf(newGrav.x) < EPSILON && fabsf(newGrav.y) < EPSILON && fabsf(newGrav.z - 1.0f) < EPSILON) {
+        // Fallback to Y-up
+        gravNorm = Vec3_New(0.0f, 1.0f, 0.0f);
+        return;
+    }
+
     gravNorm = Vec3_Normalize(newGrav);
 }
 
@@ -272,9 +284,9 @@ static inline Vector3 TransformToLocalSpace(float yaw, float pitch, float roll, 
  * Adjusts motion relative to the player's perspective while ensuring gravity alignment.
  */
 static inline Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll, Vector3 gravity) {
-    // Validate and normalize the gravity vector.
+    // Use the latest gravity if the input is zero
     if (Vec3_IsZero(gravity))
-        gravity = Vec3_New(0.0f, 1.0f, 0.0f);
+        gravity = GetGravityVector();
     else
         gravity = Vec3_Normalize(gravity);
 
@@ -316,11 +328,10 @@ static inline Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll,
  */
 static inline Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, Vector3 gravity) {
     // Validate and normalize gravity.
-    if (Vec3_IsZero(gravity)) {
-        gravity = Vec3_New(0.0f, 1.0f, 0.0f);
-    } else {
+    if (Vec3_IsZero(gravity))
+        gravity = GetGravityVector();
+    else
         gravity = Vec3_Normalize(gravity);
-    }
 
     // Compose the raw gyro vector.
     Vector3 gyro = Vec3_New(yaw, pitch, roll);
