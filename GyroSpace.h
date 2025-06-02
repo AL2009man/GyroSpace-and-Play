@@ -314,12 +314,24 @@ static inline Vector3 TransformToPlayerSpace(float yaw, float pitch, float roll,
  * Transforms gyro inputs to World Space.
  * Aligns input with the game world while maintaining spatial consistency.
  */
+<<<<<<< Updated upstream
 static inline Vector3 TransformToWorldSpace(float yaw, float pitch, float roll, Vector3 gravity) {
     // Validate and normalize gravity.
     if (Vec3_IsZero(gravity)) {
         gravity = Vec3_New(0.0f, 1.0f, 0.0f);
     } else {
         gravity = Vec3_Normalize(gravity);
+=======
+static inline Vector3 TransformToWorldSpace(float yaw, float pitch, float roll) {
+    Vector3 gyro = Vec3_New(yaw, pitch, roll);
+    Vector3 gravity = GetGravityVector();
+    gravity = Vec3_Normalize(gravity);
+
+    // World axes
+    Vector3 worldFwd = Vec3_New(0.0f, 0.0f, 1.0f); // Z+
+    if (fabsf(Vec3_Dot(gravity, worldFwd)) > 0.99f) {
+        worldFwd = Vec3_New(1.0f, 0.0f, 0.0f); // X+ fallback
+>>>>>>> Stashed changes
     }
 
     // Compose the raw gyro vector.
