@@ -1,3 +1,8 @@
+## NOTE
+
+This project has been put on hold until further notice. refer to https://github.com/AL2009man/GyroSpace-and-Play/issues/5#issuecomment-2934750851
+
+
 # GyroSpace-and-Play
 
 A plug-and-play header solution (for C and C++ projects) for implementing Axis orientations (also known as Gyro Space orientation) for your project that uses Motion Sensor Aiming/Gyro Aiming in your project.
